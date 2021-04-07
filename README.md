@@ -1,6 +1,5 @@
 # Freelight U SDK #
 
-StarFiveTech Freelight U SDK
 This builds a complete RISC-V cross-compile toolchain for the StarFiveTech JH7100 SoC. It also builds U-boot and a flattened image tree (FIT)
 image with a OpenSBI binary, linux kernel, device tree, ramdisk and rootdisk for the BeagleV development board.
 
