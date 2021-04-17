@@ -39,8 +39,8 @@ disk space.
 Copy file  fw_payload.bin.out and image.fit to installation path to use
 
 	Path：  
-	/sft-riscvpi-freedom-u-sdk/work/image.fit
-    /sft-riscvpi-freedom-u-sdk/work/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin.out
+	/freelight-u-sdk/work/image.fit
+	/freelight-u-sdk/work/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin.out
         
 ## Running on BeagleV ##
 
