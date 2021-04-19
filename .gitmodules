@@ -1,16 +1,16 @@
 [submodule "buildroot"]
 	path = buildroot
-	url = https://github.com/starfive-tech/sft-riscvpi-buildroot.git
+	url = https://github.com/starfive-tech/sft-riscv-buildroot.git
 	branch = starfive
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
-	url = https://github.com/starfive-tech/sft-riscvpi-uboot.git
+	url = https://github.com/starfive-tech/sft-riscv-uboot.git
 	branch = starfive
 [submodule "linux"]
 	path = linux
-	url = https://github.com/starfive-tech/sft-riscvpi-linux-5.10.git
+	url = https://github.com/starfive-tech/sft-riscv-linux-5.10.git
 	branch = starfive
 [submodule "opensbi"]
 	path = opensbi
-	url = https://github.com/starfive-tech/sft-riscvpi-opensbi.git
+	url = https://github.com/starfive-tech/sft-riscv-opensbi.git
 	branch = starfive
