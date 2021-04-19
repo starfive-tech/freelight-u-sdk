@@ -1,1 +1,1 @@
-# sft-riscvpi-freedom-u-sdk
+freelight-u-sdk
