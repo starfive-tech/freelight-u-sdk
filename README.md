@@ -22,15 +22,13 @@ Install required additional packages.
 
 ## Build Instructions ##
 
-Checkout this repository and checkout to starfive branch. Then you will need to checkout all of the linked
+Checkout this repository (default branch:starfive). Then you will need to checkout all of the linked
 submodules using:
 
 	$ git submodule update --init --recursive
 
 This will take some time and require around 7GB of disk space. Some modules may
 fail because certain dependencies don't have the best git hosting. 
-
-Once the submodules are initialized, 4 modules`buildroot`,`HiFive_U-boot`,`linux` and `opensbi` need checkout to starfive branch manually.
 
 After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
@@ -75,4 +73,4 @@ After you will see the information `StarFive #`,select the installation path and
 When you see the `buildroot login:` message, then congratulations, the launch was successful
 
 	buildroot login:root
-	Password: sifive
+	Password: starfive
