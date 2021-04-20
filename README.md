@@ -30,6 +30,8 @@ submodules using:
 This will take some time and require around 7GB of disk space. Some modules may
 fail because certain dependencies don't have the best git hosting. 
 
+Once the submodules are initialized, 4 modules`buildroot`,`HiFive_U-boot`,`linux` and `opensbi` need checkout to starfive branch manually.
+
 After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
