@@ -358,7 +358,7 @@ $(vfat_image): $(fit) $(confdir)/uEnv.txt
 endif
 $(flash_image): $(uboot) $(fit) $(vfat_image)
 	dd if=/dev/zero of=$(flash_image) bs=1M count=32
-	/sbin/sgdisk --clear  \
+	/sbin/sgdisk --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)   --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
@@ -382,7 +382,7 @@ DEMO_END=11718750
 .PHONY: format-boot-loader
 format-boot-loader: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear  \
+	/sbin/sgdisk --clear -g \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)  --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
@@ -445,7 +445,7 @@ ROOT_END=$(shell echo $$(($(ROOT_BEGIN)+$(ROOT_CLUSTER_NUM))))
 
 format-nvdla-disk: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear  \
+	/sbin/sgdisk --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot --typecode=2:$(UBOOT) \
 		--new=3:$(ROOT_BEGIN):0 --change-name=3:root  --typecode=3:$(LINUX) \
@@ -475,7 +475,7 @@ endif
 
 format-usb-disk: sbi $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear  \
+	/sbin/sgdisk --clear -g \
 	--new=1:0:+256M  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 	--new=2:0:+1G   --change-name=2:uboot --typecode=2:$(UBOOT) -g\
 	$(DISK)
