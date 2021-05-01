@@ -313,6 +313,12 @@ qemu-rootfs: $(qemu) $(bbl) $(vmlinux) $(initramfs) $(rootfs)
 .PHONY: uboot
 uboot: $(uboot)
 
+# disk tools
+MKFS_VFAT ?= /usr/bin/env mkfs.vfat
+MKFS_EXT4 ?= /usr/bin/env mkfs.ext4
+PARTPROBE ?= /usr/bin/env partprobe
+SGDISK ?= /usr/bin/env sgdisk
+
 # Relevant partition type codes
 BBL		= 2E54B353-1271-4842-806F-E436D6AF6985
 VFAT            = EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
@@ -339,7 +345,7 @@ $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
 	dd if=/dev/zero of=$(vfat_image) bs=512 count=$(VFAT_SIZE)
-	mkfs.vfat $(vfat_image)
+	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/u74_uEnv.txt ::u74_uEnv.txt
 else
@@ -358,13 +364,13 @@ $(vfat_image): $(fit) $(confdir)/uEnv.txt
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
 	dd if=/dev/zero of=$(vfat_image) bs=512 count=$(VFAT_SIZE)
-	mkfs.vfat $(vfat_image)
+	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/uEnv.txt ::uEnv.txt
 endif
 $(flash_image): $(uboot) $(fit) $(vfat_image)
 	dd if=/dev/zero of=$(flash_image) bs=1M count=32
-	sgdisk --clear -g  \
+	$(SGDISK) --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)   --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
@@ -376,7 +382,7 @@ DEMO_END=11718750
 
 #$(demo_image): $(uboot) $(fit) $(vfat_image) $(ext_image)
 #	dd if=/dev/zero of=$(flash_image) bs=512 count=$(DEMO_END)
-#	sgdisk --clear -g \
+#	$(SGDISK) --clear -g \
 #		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 #		--new=3:$(UBOOT_START):$(UBOOT_END)   --change-name=3:uboot	--typecode=3:$(UBOOT) \
 #		--new=2:264192:$(DEMO_END) --change-name=2:root	--typecode=2:$(LINUX) \
@@ -388,13 +394,13 @@ DEMO_END=11718750
 .PHONY: format-boot-loader
 format-boot-loader: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	sgdisk --clear -g  \
+	$(SGDISK) --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)  --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
 		--new=4:274432:0 --change-name=4:root	--typecode=4:$(LINUX) \
 		$(DISK)
-	-partprobe
+	-$(PARTPROBE)
 	@sleep 1
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
@@ -425,7 +431,7 @@ format-rootfs-image: format-boot-loader
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	mke2fs -t ext4 $(PART4)
+	$(MKFS_EXT4) $(PART4)
 	-mkdir -p tmp-mnt
 	-mkdir -p tmp-rootfs
 	-sudo mount $(PART4) tmp-mnt && \
@@ -437,11 +443,11 @@ format-demo-image: format-boot-loader
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	mke2fs -t ext4 $(PART4)
+	$(MKFS_EXT4) $(PART4)
 	-mkdir tmp-mnt
 	-sudo mount $(PART4) tmp-mnt && cd tmp-mnt && \
 		sudo wget $(DEMO_URL)$(DEMO_IMAGE) && \
-		sudo tar -Jxvf $(DEMO_IMAGE)
+		sudo tar -xvpf $(DEMO_IMAGE)
 	sudo umount tmp-mnt
 
 # default size: 16GB
@@ -452,12 +458,12 @@ ROOT_END=$(shell echo $$(($(ROOT_BEGIN)+$(ROOT_CLUSTER_NUM))))
 
 format-nvdla-disk: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	sudo sgdisk --clear -g \
+	sudo $(SGDISK) --clear -g \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot --typecode=2:$(UBOOT) \
 		--new=3:$(ROOT_BEGIN):0 --change-name=3:root  --typecode=3:$(LINUX) \
 		$(DISK)
-	-partprobe
+	-$(PARTPROBE)
 	@sleep 3
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
@@ -482,11 +488,11 @@ endif
 
 format-usb-disk: sbi $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	sudo sgdisk --clear -g \
+	sudo $(SGDISK) --clear -g \
 	--new=1:0:+256M  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 	--new=2:0:+1G   --change-name=2:uboot --typecode=2:$(UBOOT) -g\
 	$(DISK)
-	-partprobe
+	-$(PARTPROBE)
 	@sleep 3
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
@@ -514,7 +520,7 @@ format-nvdla-rootfs: format-nvdla-disk
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	sudo mke2fs -t ext4 $(PART3)
+	sudo $(MKFS_EXT4) $(PART3)
 	-mkdir -p tmp-mnt
 	-mkdir -p tmp-rootfs
 	-sudo mount $(PART3) tmp-mnt && \
@@ -528,11 +534,11 @@ format-nvdla-root: format-nvdla-disk
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
 	@test -e $(wrkdir)/$(DEB_IMAGE) || (wget -P $(wrkdir) $(DEB_URL)/$(DEB_IMAGE))
-	sudo mke2fs -t ext4 $(PART3)
+	sudo $(MKFS_EXT4) $(PART3)
 	-mkdir -p tmp-mnt
 	-sudo mount $(PART3) tmp-mnt && \
 		echo "please wait until checkpoint reaches 489k" && \
-		sudo tar Jxf $(wrkdir)/$(DEB_IMAGE) -C tmp-mnt --checkpoint=1000
+		sudo tar xpf $(wrkdir)/$(DEB_IMAGE) -C tmp-mnt --checkpoint=1000
 	sudo umount tmp-mnt
 
 -include $(initramfs).d
