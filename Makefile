@@ -13,7 +13,7 @@ buildroot_initramfs_wrkdir := $(wrkdir)/buildroot_initramfs
 
 # TODO: make RISCV be able to be set to alternate toolchain path
 RISCV ?= $(buildroot_initramfs_wrkdir)/host
-RVPATH ?= $(RISCV)/bin:$(PATH)
+RVPATH ?= $(RISCV)/bin:/usr/sbin:/sbin:$(PATH)
 target ?= riscv64-buildroot-linux-gnu
 
 CROSS_COMPILE ?= $(RISCV)/bin/$(target)-
@@ -314,10 +314,10 @@ qemu-rootfs: $(qemu) $(bbl) $(vmlinux) $(initramfs) $(rootfs)
 uboot: $(uboot)
 
 # disk tools
-MKFS_VFAT ?= /usr/bin/env mkfs.vfat
-MKFS_EXT4 ?= /usr/bin/env mkfs.ext4
-PARTPROBE ?= /usr/bin/env partprobe
-SGDISK ?= /usr/bin/env sgdisk
+MKFS_VFAT ?= mkfs.vfat
+MKFS_EXT4 ?= mkfs.ext4
+PARTPROBE ?= partprobe
+SGDISK ?= sgdisk
 
 # Relevant partition type codes
 BBL		= 2E54B353-1271-4842-806F-E436D6AF6985
