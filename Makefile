@@ -13,10 +13,10 @@ buildroot_initramfs_wrkdir := $(wrkdir)/buildroot_initramfs
 
 # TODO: make RISCV be able to be set to alternate toolchain path
 RISCV ?= $(buildroot_initramfs_wrkdir)/host
-RVPATH := $(RISCV)/bin:$(PATH)
-target := riscv64-buildroot-linux-gnu
+RVPATH ?= $(RISCV)/bin:/usr/sbin:/sbin:$(PATH)
+target ?= riscv64-buildroot-linux-gnu
 
-CROSS_COMPILE := $(RISCV)/bin/$(target)-
+CROSS_COMPILE ?= $(RISCV)/bin/$(target)-
 
 buildroot_initramfs_tar := $(buildroot_initramfs_wrkdir)/images/rootfs.tar
 buildroot_initramfs_config := $(confdir)/buildroot_initramfs_config
@@ -82,7 +82,7 @@ endif
 uboot_defconfig := $(uboot_srcdir)/configs/$(uboot_config)
 rootfs := $(wrkdir)/rootfs.bin
 
-target_gcc := $(CROSS_COMPILE)gcc
+target_gcc ?= $(CROSS_COMPILE)gcc
 
 .PHONY: all nvdla-demo
 nvdla-demo: $(fit) $(vfat_image)
@@ -158,22 +158,22 @@ $(buildroot_initramfs_sysroot_stamp): $(buildroot_initramfs_tar)
 $(linux_wrkdir)/.config: $(linux_defconfig) $(linux_srcdir)
 	mkdir -p $(dir $@)
 	cp -p $< $@
-	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv olddefconfig
+	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) olddefconfig
 ifeq (,$(filter rv%c,$(ISA)))
 	sed 's/^.*CONFIG_RISCV_ISA_C.*$$/CONFIG_RISCV_ISA_C=n/' -i $@
-	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv olddefconfig
+	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) olddefconfig
 endif
 ifeq ($(ISA),$(filter rv32%,$(ISA)))
 	sed 's/^.*CONFIG_ARCH_RV32I.*$$/CONFIG_ARCH_RV32I=y/' -i $@
 	sed 's/^.*CONFIG_ARCH_RV64I.*$$/CONFIG_ARCH_RV64I=n/' -i $@
-	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv olddefconfig
+	$(MAKE) -C $(linux_srcdir) O=$(linux_wrkdir) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) olddefconfig
 endif
 
 $(uboot_wrkdir)/.config: $(uboot_defconfig)
 	mkdir -p $(dir $@)
 	cp -p $< $@
 
-$(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc)
+$(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc) $(buildroot_initramfs_sysroot)
 	$(MAKE) -C $< O=$(linux_wrkdir) \
 		ARCH=riscv \
 		CROSS_COMPILE=$(CROSS_COMPILE) \
@@ -181,6 +181,12 @@ $(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc)
 		vmlinux		\
 		all \
 		modules
+	$(MAKE) -C $< O=$(linux_wrkdir) \
+		ARCH=riscv \
+		CROSS_COMPILE=$(CROSS_COMPILE) \
+		PATH=$(RVPATH) \
+		INSTALL_MOD_PATH=$(buildroot_initramfs_sysroot) \
+		modules_install
 
 .PHONY: initrd
 initrd: $(initramfs)
@@ -203,8 +209,8 @@ $(vmlinux_bin): $(vmlinux)
 
 .PHONY: linux-menuconfig
 linux-menuconfig: $(linux_wrkdir)/.config
-	$(MAKE) -C $(linux_srcdir) O=$(dir $<) ARCH=riscv menuconfig
-	$(MAKE) -C $(linux_srcdir) O=$(dir $<) ARCH=riscv savedefconfig
+	$(MAKE) -C $(linux_srcdir) O=$(dir $<) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) menuconfig
+	$(MAKE) -C $(linux_srcdir) O=$(dir $<) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) savedefconfig
 	cp $(dir $<)defconfig $(linux_defconfig)
 
 sbi: $(uboot) $(vmlinux)
@@ -254,14 +260,14 @@ $(qemu): $(qemu_srcdir)
 
 .PHONY: uboot-menuconfig
 uboot-menuconfig: $(uboot_wrkdir)/.config
-	$(MAKE) -C $(uboot_srcdir) O=$(dir $<) ARCH=riscv menuconfig
+	$(MAKE) -C $(uboot_srcdir) O=$(dir $<) ARCH=riscv CROSS_COMPILE=$(CROSS_COMPILE) menuconfig
 	cp $(uboot_wrkdir)/.config $(uboot_defconfig)
 
 $(uboot): $(uboot_srcdir) $(target_gcc)
 	rm -rf $(uboot_wrkdir)
 	mkdir -p $(uboot_wrkdir)
 	mkdir -p $(dir $@)
-	$(MAKE) -C $(uboot_srcdir) O=$(uboot_wrkdir) $(uboot_config)
+	$(MAKE) -C $(uboot_srcdir) O=$(uboot_wrkdir) CROSS_COMPILE=$(CROSS_COMPILE) $(uboot_config)
 	$(MAKE) -C $(uboot_srcdir) O=$(uboot_wrkdir) CROSS_COMPILE=$(CROSS_COMPILE)
 
 $(rootfs): $(buildroot_rootfs_ext)
@@ -307,6 +313,12 @@ qemu-rootfs: $(qemu) $(bbl) $(vmlinux) $(initramfs) $(rootfs)
 .PHONY: uboot
 uboot: $(uboot)
 
+# disk tools
+MKFS_VFAT ?= mkfs.vfat
+MKFS_EXT4 ?= mkfs.ext4
+PARTPROBE ?= partprobe
+SGDISK ?= sgdisk
+
 # Relevant partition type codes
 BBL		= 2E54B353-1271-4842-806F-E436D6AF6985
 VFAT            = EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
@@ -333,7 +345,7 @@ $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
 	dd if=/dev/zero of=$(vfat_image) bs=512 count=$(VFAT_SIZE)
-	/sbin/mkfs.vfat $(vfat_image)
+	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/u74_uEnv.txt ::u74_uEnv.txt
 else
@@ -352,13 +364,13 @@ $(vfat_image): $(fit) $(confdir)/uEnv.txt
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
 	dd if=/dev/zero of=$(vfat_image) bs=512 count=$(VFAT_SIZE)
-	/sbin/mkfs.vfat $(vfat_image)
+	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/uEnv.txt ::uEnv.txt
 endif
 $(flash_image): $(uboot) $(fit) $(vfat_image)
 	dd if=/dev/zero of=$(flash_image) bs=1M count=32
-	/sbin/sgdisk --clear -g  \
+	$(SGDISK) --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)   --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
@@ -370,7 +382,7 @@ DEMO_END=11718750
 
 #$(demo_image): $(uboot) $(fit) $(vfat_image) $(ext_image)
 #	dd if=/dev/zero of=$(flash_image) bs=512 count=$(DEMO_END)
-#	/sbin/sgdisk --clear  \
+#	$(SGDISK) --clear -g \
 #		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 #		--new=3:$(UBOOT_START):$(UBOOT_END)   --change-name=3:uboot	--typecode=3:$(UBOOT) \
 #		--new=2:264192:$(DEMO_END) --change-name=2:root	--typecode=2:$(LINUX) \
@@ -382,13 +394,13 @@ DEMO_END=11718750
 .PHONY: format-boot-loader
 format-boot-loader: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear -g \
+	$(SGDISK) --clear -g  \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"	--typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot	--typecode=2:$(UBOOT) \
 		--new=3:$(UENV_START):$(UENV_END)  --change-name=3:uboot-env	--typecode=3:$(UBOOTENV) \
 		--new=4:274432:0 --change-name=4:root	--typecode=4:$(LINUX) \
 		$(DISK)
-	-/sbin/partprobe
+	-$(PARTPROBE)
 	@sleep 1
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
@@ -419,7 +431,7 @@ format-rootfs-image: format-boot-loader
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	/sbin/mke2fs -t ext4 $(PART4)
+	$(MKFS_EXT4) $(PART4)
 	-mkdir -p tmp-mnt
 	-mkdir -p tmp-rootfs
 	-sudo mount $(PART4) tmp-mnt && \
@@ -431,27 +443,28 @@ format-demo-image: format-boot-loader
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	/sbin/mke2fs -t ext4 $(PART4)
+	$(MKFS_EXT4) $(PART4)
 	-mkdir tmp-mnt
 	-sudo mount $(PART4) tmp-mnt && cd tmp-mnt && \
 		sudo wget $(DEMO_URL)$(DEMO_IMAGE) && \
-		sudo tar -Jxvf $(DEMO_IMAGE)
+		sudo tar -xvpf $(DEMO_IMAGE)
 	sudo umount tmp-mnt
 
+# default size: 16GB
+DISK_IMAGE_SIZE ?= 16
 ROOT_BEGIN=272384
-# default size: 20GB
-ROOT_CLUSTER_NUM=$(shell echo $$((20*1024*1024*1024/512)))
+ROOT_CLUSTER_NUM=$(shell echo $$(($(DISK_IMAGE_SIZE)*1024*1024*1024/512)))
 ROOT_END=$(shell echo $$(($(ROOT_BEGIN)+$(ROOT_CLUSTER_NUM))))
 
 format-nvdla-disk: $(bbl_bin) $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear -g  \
+	sudo $(SGDISK) --clear -g \
 		--new=1:$(VFAT_START):$(VFAT_END)  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 		--new=2:$(UBOOT_START):$(UBOOT_END)   --change-name=2:uboot --typecode=2:$(UBOOT) \
 		--new=3:$(ROOT_BEGIN):0 --change-name=3:root  --typecode=3:$(LINUX) \
 		$(DISK)
-	-/sbin/partprobe
-	@sleep 1
+	-$(PARTPROBE)
+	@sleep 3
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
 	@$(eval PART2 := $(DISK)p2)
@@ -468,19 +481,19 @@ else
 	@echo Error: Could not find bootloader partition for $(DISK)
 	@exit 1
 endif
-	dd if=$(uboot) of=$(PART2) bs=4096
-	dd if=$(vfat_image) of=$(PART1) bs=4096
+	sudo dd if=$(uboot) of=$(PART2) bs=4096
+	sudo dd if=$(vfat_image) of=$(PART1) bs=4096
 
 #usb config
 
 format-usb-disk: sbi $(uboot) $(fit) $(vfat_image)
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	/sbin/sgdisk --clear -g \
+	sudo $(SGDISK) --clear -g \
 	--new=1:0:+256M  --change-name=1:"Vfat Boot"  --typecode=1:$(VFAT)   \
 	--new=2:0:+1G   --change-name=2:uboot --typecode=2:$(UBOOT) -g\
 	$(DISK)
-	-/sbin/partprobe
-	@sleep 1
+	-$(PARTPROBE)
+	@sleep 3
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
 	@$(eval PART2 := $(DISK)p2)
@@ -497,8 +510,8 @@ else
 	@echo Error: Could not find bootloader partition for $(DISK)
 	@exit 1
 endif
-	dd if=$(uboot) of=$(PART2) bs=4096
-	dd if=$(vfat_image) of=$(PART1) bs=4096
+	sudo dd if=$(uboot) of=$(PART2) bs=4096
+	sudo dd if=$(vfat_image) of=$(PART1) bs=4096
 
 DEB_IMAGE := debian_nvdla_20190506.tar.xz
 DEB_URL := https://github.com/sifive/freedom-u-sdk/releases/download/nvdla-demo-0.1
@@ -507,7 +520,7 @@ format-nvdla-rootfs: format-nvdla-disk
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	/sbin/mke2fs -t ext4 $(PART3)
+	sudo $(MKFS_EXT4) $(PART3)
 	-mkdir -p tmp-mnt
 	-mkdir -p tmp-rootfs
 	-sudo mount $(PART3) tmp-mnt && \
@@ -521,11 +534,11 @@ format-nvdla-root: format-nvdla-disk
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
 	@test -e $(wrkdir)/$(DEB_IMAGE) || (wget -P $(wrkdir) $(DEB_URL)/$(DEB_IMAGE))
-	/sbin/mke2fs -t ext4 $(PART3)
+	sudo $(MKFS_EXT4) $(PART3)
 	-mkdir -p tmp-mnt
-	-mount $(PART3) tmp-mnt && \
+	-sudo mount $(PART3) tmp-mnt && \
 		echo "please wait until checkpoint reaches 489k" && \
-		tar Jxf $(wrkdir)/$(DEB_IMAGE) -C tmp-mnt --checkpoint=1000
-	umount tmp-mnt
+		sudo tar xpf $(wrkdir)/$(DEB_IMAGE) -C tmp-mnt --checkpoint=1000
+	sudo umount tmp-mnt
 
 -include $(initramfs).d
