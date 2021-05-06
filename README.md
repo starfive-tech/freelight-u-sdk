@@ -70,7 +70,7 @@ Smallest/fastest sync:
     $ repo init -u https://github.com/starfive-tech/freelight-u-sdk.git -b starfive -m tools/manifests/riscv-sdk.xml --no-clone-bundle --depth=1
     $ repo sync --no-tags --no-clone-bundle --current-branch
 
-    Note: we already define -c in riscv-sdk.xml, so no need to add it.
+Note: we already define -c in riscv-sdk.xml, so no need to add it.
 
 
 ## Build Instructions ##
