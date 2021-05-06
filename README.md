@@ -41,14 +41,20 @@ The above uses default branch for the manifest file; add `-b <branch_name>` to u
 sync repo:
 
     $ repo sync   # this will check out branch HEAD commits
-    $ repo start  # this will check out each configured branch
+
+To make changes you want to keep, after sync use the following:
+
+    $ repo start <newbranchname> [--all | <project>...]
 
 ### Update existing workspace
 
-In order to bring all the layers up to date with upstream
+In order to bring all the repositories up to date with upstream
 
     $ cd freelight-sdk
     $ repo sync
+
+If you have local changes, you might also need:
+
     $ repo rebase
 
 ### Repo tips
