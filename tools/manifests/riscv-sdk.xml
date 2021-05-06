@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<manifest>
+  <remote name="starfive-tech" fetch="git://github.com/starfive-tech/" />
+  <default remote="starfive-tech"
+           revision="starfive"
+           sync-c="true"
+           sync-j="4" />
+
+  <project name="freelight-u-sdk" remote="starfive-tech" path="freelight-u-sdk" revision="starfive" />
+  <project name="uboot" remote="starfive-tech" path="freelight-u-sdk/HiFive_U-Boot" revision="Fedora" />
+  <project name="linux" remote="starfive-tech" path="freelight-u-sdk/linux" revision="Fedora" />
+  <project name="opensbi" remote="starfive-tech" path="freelight-u-sdk/opensbi" revision="Fedora" />
+  <project name="sft-riscv-buildroot" remote="starfive-tech" path="freelight-u-sdk/buildroot" revision="starfive" />
+
+</manifest>
