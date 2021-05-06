@@ -9,7 +9,7 @@
            sync-j="4" />
 
   <project name="freelight-u-sdk" remote="starfive-tech" path="freelight-u-sdk" revision="starfive" />
-  <project name="uboot" remote="starfive-tech" path="freelight-u-sdk/HiFive_U-Boot" revision="Fedora" />
+  <project name="u-boot" remote="starfive-tech" path="freelight-u-sdk/HiFive_U-Boot" revision="Fedora" />
   <project name="linux" remote="starfive-tech" path="freelight-u-sdk/linux" revision="Fedora" />
   <project name="opensbi" remote="starfive-tech" path="freelight-u-sdk/opensbi" revision="Fedora" />
   <project name="buildroot" remote="tpetazzoni" path="freelight-u-sdk/buildroot" revision="beaglev" />
