@@ -34,13 +34,14 @@ Make sure to [install the `repo` command by Google](https://source.android.com/s
 Repo initialization:
 
     $ mkdir freelight-sdk && cd freelight-sdk
-    $ repo init -u https://github.com/starfive-tech/freelight-u-sdk.git -b starfive -m tools/manifests/riscv-sdk.xml
+    $ repo init -u https://github.com/starfive-tech/freelight-u-sdk.git -m tools/manifests/riscv-sdk.xml
 
+The above uses default branch for the manifest file; add `-b <branch_name>` to use a different branch.
 
 sync repo:
 
-    $ repo sync
-    $ repo start starfive --all
+    $ repo sync   # this will check out branch HEAD commits
+    $ repo start  # this will check out each configured branch
 
 ### Update existing workspace
 
