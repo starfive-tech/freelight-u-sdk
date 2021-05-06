@@ -3,12 +3,13 @@
 <manifest>
   <remote name="starfive-tech" fetch="git://github.com/starfive-tech/" />
   <remote name="tpetazzoni" fetch="https://github.com/tpetazzoni/" />
+  <remote name="nerdboy" fetch="https://github.com/sarnold/" />
   <default remote="starfive-tech"
            revision="starfive"
            sync-c="true"
            sync-j="4" />
 
-  <project name="freelight-u-sdk" remote="starfive-tech" path="freelight-u-sdk" revision="starfive" />
+  <project name="freelight-u-sdk" remote="nerdboy" path="freelight-u-sdk" revision="manifest-pr" />
   <project name="u-boot" remote="starfive-tech" path="freelight-u-sdk/HiFive_U-Boot" revision="Fedora" />
   <project name="linux" remote="starfive-tech" path="freelight-u-sdk/linux" revision="Fedora" />
   <project name="opensbi" remote="starfive-tech" path="freelight-u-sdk/opensbi" revision="Fedora" />
