@@ -1,5 +1,9 @@
-# Freelight U SDK #
+### NOTE: support in upstream Buildroot
+BeagleV Starlight and the StarFive JH7100 SoC has been merged into upstream buildroot.
+[Instructions](https://github.com/buildroot/buildroot/blob/master/board/beaglev/readme.txt) are available in [buildroot master branch](https://github.com/buildroot/buildroot/blob/master/board/beaglev/). 
 
+
+# Freelight U SDK #
 This builds a complete RISC-V cross-compile toolchain for the StarFiveTech JH7100 SoC. It also builds U-boot and a flattened image tree (FIT)
 image with a OpenSBI binary, linux kernel, device tree, ramdisk and rootdisk for the BeagleV development board.
 
