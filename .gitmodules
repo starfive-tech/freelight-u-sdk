@@ -1,16 +1,17 @@
 [submodule "buildroot"]
 	path = buildroot
-	url = https://github.com/starfive-tech/sft-riscv-buildroot.git
-	branch = starfive
+	url = git@github.com:starfive-tech/sft-riscv-buildroot.git
+	branch = starlight_multimedia
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
-	url = https://github.com/starfive-tech/sft-riscv-uboot.git
-	branch = starfive
+	url = git@github.com:starfive-tech/u-boot.git
+	branch = JH7100_starlight_multimedia
 [submodule "linux"]
 	path = linux
-	url = https://github.com/starfive-tech/sft-riscv-linux-5.10.git
-	branch = starfive
+	url = git@github.com:starfive-tech/linux.git
+	branch = beaglev-5.13.y_multimedia
 [submodule "opensbi"]
 	path = opensbi
-	url = https://github.com/starfive-tech/sft-riscv-opensbi.git
+	url = git@github.com:starfive-tech/sft-riscv-opensbi.git
 	branch = starfive
+
