@@ -28,7 +28,7 @@ buildroot_rootfs_config := $(confdir)/buildroot_rootfs_config
 
 linux_srcdir := $(srcdir)/linux
 linux_wrkdir := $(wrkdir)/linux
-linux_defconfig := $(confdir)/sdk_210209_defconfig
+linux_defconfig := $(confdir)/beaglev_defconfig_513
 
 vmlinux := $(linux_wrkdir)/vmlinux
 vmlinux_stripped := $(linux_wrkdir)/vmlinux-stripped
@@ -53,6 +53,7 @@ initramfs := $(wrkdir)/initramfs.cpio.gz
 sbi_srcdir := $(srcdir)/opensbi
 sbi_wrkdir := $(wrkdir)/opensbi
 sbi_bin := $(wrkdir)/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin
+#sbi_bin := $(wrkdir)/opensbi/platform/generic/firmware/fw_payload.bin
 fit := $(wrkdir)/image.fit
 
 fesvr_srcdir := $(srcdir)/riscv-fesvr
@@ -69,12 +70,13 @@ qemu := $(qemu_wrkdir)/prefix/bin/qemu-system-riscv64
 
 uboot_srcdir := $(srcdir)/HiFive_U-Boot
 uboot_wrkdir := $(wrkdir)/HiFive_U-Boot
-uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/starfive_vic7100_evb.dtb
+uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
 uboot := $(uboot_wrkdir)/u-boot.bin
 uboot_config := HiFive-U540_regression_defconfig
 
 ifeq ($(TARGET_BOARD),U74)
-	uboot_config := starfive_vic7100_evb_smode_defconfig
+	uboot_config := starfive_jh7100_starlight_smode_defconfig
+	# uboot_config := starfive_vic7100_evb_smode_defconfig
 else
 	uboot_config := HiFive-U540_nvdla_iofpga_defconfig
 endif
@@ -151,6 +153,7 @@ buildroot_rootfs-menuconfig: $(buildroot_rootfs_wrkdir)/.config $(buildroot_srcd
 	cp $(dir $<)defconfig conf/buildroot_rootfs_config
 
 $(buildroot_initramfs_sysroot_stamp): $(buildroot_initramfs_tar)
+	-rm -rf $(buildroot_initramfs_sysroot)
 	mkdir -p $(buildroot_initramfs_sysroot)
 	tar -xpf $< -C $(buildroot_initramfs_sysroot) --exclude ./dev --exclude ./usr/share/locale
 	touch $@
@@ -188,13 +191,29 @@ $(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc) $(buildroot_in
 		INSTALL_MOD_PATH=$(buildroot_initramfs_sysroot) \
 		modules_install
 
+# vpu building depend on the $(vmlinux), $(vmlinux) depend on $(buildroot_initramfs_sysroot)
+# so vpubuild should be built after $(vmlinux)
+vpubuild: $(vmlinux) wave511-build omxil-build gstomx-build
+wave511-build:
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511-dirclean
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511-rebuild
+wave521-build:
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave521-dirclean
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave521-rebuild
+omxil-build:
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-omx-il-dirclean
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-omx-il-rebuild
+gstomx-build:
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-dirclean
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-rebuild
+
 .PHONY: initrd
 initrd: $(initramfs)
 
-$(initramfs).d: $(buildroot_initramfs_sysroot)
+$(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
 	$(linux_srcdir)/usr/gen_initramfs_list.sh -l $(confdir)/initramfs.txt $(buildroot_initramfs_sysroot) > $@
 
-$(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux)
+$(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
 	cd $(linux_wrkdir) && \
 		$(linux_srcdir)/usr/gen_initramfs_list.sh \
 		-o $@ -u $(shell id -u) -g $(shell id -g) \
@@ -220,7 +239,7 @@ sbi: $(uboot) $(vmlinux)
 		PLATFORM=starfive/vic7100 FW_PAYLOAD_PATH=$(uboot) FW_PAYLOAD_FDT_PATH=$(uboot_dtb_file)
 
 
-$(fit): sbi $(vmlinux_bin) $(uboot) $(its_file) ${initramfs}
+$(fit): sbi $(vmlinux_bin) $(uboot) $(its_file) $(initramfs)
 	$(uboot_wrkdir)/tools/mkimage -f $(its_file) -A riscv -O linux -T flat_dt $@
 	@if [ -f fsz.sh ]; then ./fsz.sh $(sbi_bin); fi
 
