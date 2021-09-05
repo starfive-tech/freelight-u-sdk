@@ -5,7 +5,7 @@ BeagleV Starlight and the StarFive JH7100 SoC has been merged into upstream buil
 
 # Freelight U SDK #
 This builds a complete RISC-V cross-compile toolchain for the StarFiveTech JH7100 SoC. It also builds U-boot and a flattened image tree (FIT)
-image with a OpenSBI binary, linux kernel, device tree, ramdisk and rootdisk for the BeagleV development board.
+image with a OpenSBI binary, linux kernel, device tree, ramdisk and rootdisk for the Starlight development board.
 
 ## Prerequisites ##
 
@@ -24,22 +24,37 @@ Install required additional packages.
 	libmpc-dev libmpfr-dev libncurses-dev libssl-dev libtool \
 	patchutils python screen texinfo unzip zlib1g-dev device-tree-compiler
 
-## Build Instructions ##
+## Fetch code Instructions ##
 
-Checkout this repository (default branch:starfive). Then you will need to checkout all of the linked
+Checkout this repository (the multimedia branch: `JH7100_starlight_multimedia`). Then you will need to checkout all of the linked
 submodules using:
 
+	$ git checkout --track origin/JH7100_starlight_multimedia
 	$ git submodule update --init --recursive
 
 This will take some time and require around 7GB of disk space. Some modules may
 fail because certain dependencies don't have the best git hosting.
 
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
-`linux` and `opensbi` need checkout to starfive branch manually.
+`linux` and `opensbi` need checkout to starfive branch manually, seeing `.gitmodule`
+
+	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_starlight_multimedia && cd ..
+	$ cd linux && git checkout --track origin/beaglev-5.13.y_multimedia && cd ..
+	$ cd opensbi && git checkout --track origin/starfive && cd ..
+
+## Build Instructions ##
 
 After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
+
+By default, the above generated firmware does not include the VPU module(wave511), which include the video hard decode driver and openmax-il framework library.  The following instructions will include the VPU module according to your requirement:
+
+	$ make -jx
+	$ make vpubuild
+	$ rm -rf work/buildroot_initramfs/images/rootfs.tar
+	$ make -jx
 
 Copy files fw_payload.bin.out and image.fit to tftp installation path to use
 
