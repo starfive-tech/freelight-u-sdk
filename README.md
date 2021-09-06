@@ -49,7 +49,7 @@ After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
 
-By default, the above generated firmware does not include the VPU module(wave511), which include the video hard decode driver and openmax-il framework library.  The following instructions will include the VPU module according to your requirement:
+By default, the above generated image does not contain VPU module(wave511, the video hard decode driver and openmax-il framework library).  The following instructions will add VPU module according to your requirement:
 
 	$ make -jx
 	$ make vpubuild
