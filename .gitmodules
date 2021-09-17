@@ -5,13 +5,13 @@
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
 	url = git@github.com:starfive-tech/u-boot.git
-	branch = JH7100_starlight_multimedia
+	branch = Fedora_JH7100_upstream_devel
 [submodule "linux"]
 	path = linux
 	url = git@github.com:starfive-tech/linux.git
 	branch = beaglev-5.13.y_multimedia
 [submodule "opensbi"]
 	path = opensbi
-	url = git@github.com:starfive-tech/sft-riscv-opensbi.git
-	branch = starfive
+	url = git@github.com:starfive-tech/opensbi.git
+	branch = master
 
