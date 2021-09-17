@@ -52,8 +52,8 @@ initramfs := $(wrkdir)/initramfs.cpio.gz
 
 sbi_srcdir := $(srcdir)/opensbi
 sbi_wrkdir := $(wrkdir)/opensbi
-sbi_bin := $(wrkdir)/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin
-#sbi_bin := $(wrkdir)/opensbi/platform/generic/firmware/fw_payload.bin
+#sbi_bin := $(wrkdir)/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin
+sbi_bin := $(wrkdir)/opensbi/platform/generic/firmware/fw_payload.bin
 fit := $(wrkdir)/image.fit
 
 fesvr_srcdir := $(srcdir)/riscv-fesvr
@@ -236,8 +236,7 @@ sbi: $(uboot) $(vmlinux)
 	rm -rf $(sbi_wrkdir)
 	mkdir -p $(sbi_wrkdir)
 	cd $(sbi_wrkdir) && O=$(sbi_wrkdir) CFLAGS="-mabi=$(ABI) -march=$(ISA)" ${MAKE} -C $(sbi_srcdir) CROSS_COMPILE=$(CROSS_COMPILE) \
-		PLATFORM=starfive/vic7100 FW_PAYLOAD_PATH=$(uboot) FW_PAYLOAD_FDT_PATH=$(uboot_dtb_file)
-
+		PLATFORM=generic FW_PAYLOAD_PATH=$(uboot) FW_FDT_PATH=$(uboot_dtb_file)
 
 $(fit): sbi $(vmlinux_bin) $(uboot) $(its_file) $(initramfs)
 	$(uboot_wrkdir)/tools/mkimage -f $(its_file) -A riscv -O linux -T flat_dt $@
