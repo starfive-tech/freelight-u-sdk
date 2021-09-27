@@ -36,12 +36,12 @@ This will take some time and require around 7GB of disk space. Some modules may
 fail because certain dependencies don't have the best git hosting.
 
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
-`linux` and `opensbi` need checkout to starfive branch manually, seeing `.gitmodule`
+`linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
 	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
-	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_starlight_multimedia && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/Fedora_JH7100_upstream_devel && cd ..
 	$ cd linux && git checkout --track origin/beaglev-5.13.y_multimedia && cd ..
-	$ cd opensbi && git checkout --track origin/starfive && cd ..
+	$ cd opensbi && git checkout --track origin/master && cd ..
 
 ## Build Instructions ##
 
