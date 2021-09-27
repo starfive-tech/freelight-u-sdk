@@ -60,7 +60,7 @@ Copy files fw_payload.bin.out and image.fit to tftp installation path to use
 
 	Path:
 	freelight-u-sdk/work/image.fit
-	freelight-u-sdk/work/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin.out
+	freelight-u-sdk/work/opensbi/platform/generic/firmware/fw_payload.bin.out
 
 
 ## Running on Starlight Board ##
@@ -100,6 +100,3 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 	buildroot login:root
 	Password: starfive
 
-## Known Issue ##
-- [ ] The system freezes during the u-boot phase if OpenSBI was moved to generic platform;
-- [ ] I2C and I2S have some errors during boot stage after code was merged into 5.13.y kernel(Maybe it was conflict with pinctrl)
