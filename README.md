@@ -58,9 +58,48 @@ By default, the above generated image does not contain VPU module(wave511, the v
 
 Copy files fw_payload.bin.out and image.fit to tftp installation path to use
 
-	Path:
-	freelight-u-sdk/work/image.fit
-	freelight-u-sdk/work/opensbi/platform/generic/firmware/fw_payload.bin.out
+```
+Path:
+freelight-u-sdk/work/image.fit
+freelight-u-sdk/work/opensbi/platform/generic/firmware/fw_payload.bin.out
+```
+
+The other make command:
+
+```
+make linux-menuconfig      # Kernel menuconfig
+make uboot-menuconfig      # uboot menuconfig
+make buildroot_initramfs-menuconfig   # initramfs menuconfig
+make buildroot_rootfs-menuconfig      # rootfs menuconfig
+```
+
+## Display Framework Switch Instructions
+
+The default display framework is `Framebuffer`. If switch to `DRM` display framework (`drm to hdmi` pipeline):
+
+```
+1. Disable the below kernel config
+   CONFIG_FB_STARFIVE
+   CONFIG_FB_STARFIVE_HDMI_TDA998X
+   CONFIG_FB_STARFIVE_VIDEO
+   CONFIG_NVDLA
+   CONFIG_FRAMEBUFFER_CONSOLE
+
+2. Enable the below kernel config:
+   CONFIG_DRM_I2C_NXP_TDA998X
+   CONFIG_DRM_I2C_NXP_TDA9950
+   CONFIG_DRM_STARFIVE
+
+Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
+```
+
+If switch to `DRM` display framework (`drm to mipi` pipeline):
+
+```
+based on the above drm to hdmi pipeline config, enable the below kernel config:
+CONFIG_PHY_M31_DPHY_RX0
+CONFIG_DRM_STARFIVE_MIPI_DSI
+```
 
 
 ## Running on Starlight Board ##
