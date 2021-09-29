@@ -13,7 +13,7 @@ fitfile=hifiveu.fit
 
 # The rest of this is mostly of interest to u-boot developers
 # below much match what's in FIT (ugha)
-bbladdr=80700000
+bbladdr=80200000
 fdtaddr=86000000
 irdaddr=86100000
 irdsize=06400000
@@ -34,11 +34,20 @@ setupird=setexpr irdend ${irdaddr} + ${irdsize}; fdt set /chosen linux,initrd-st
 #setupfdt2=fdt print /chosen; fdt set /chosen bootargs "${bootargs}"; fdt set /firmware uboot,ver ${ver}; fdt print /chosen
 setupfdt2=fdt print /chosen; fdt set /chosen bootargs "${bootargs}"; fdt print /chosen
 
+bootfile=vmlinuz
+fdt_addr_r=0x88000000
+fdt_high=0xffffffffffffffff
+fdtcontroladdr=0xffffffffffffffff
+initrd_high=0xffffffffffffffff
+kernel_addr_r=0x84000000
+ipaddr=192.168.120.250
+
 bootwait=setenv _delay ${bootdelay}; echo ${_delay}; while test ${_delay} > 0; do sleep 1; setexpr _delay ${_delay} - 1; echo ${_delay}; done
 
 # this assumes ${fileaddr} is already set!!
 #boot2=fatload mmc 0:1 ${fileaddr} ${fitfile}; bootm start ${fileaddr}; run setupfdt1; run setupchosen; run setupfdt2; bootm loados ${fileaddr}; echo "Booting kernel in"; run bootwait; go 80000000
-boot2=fatload mmc 0:1 ${fileaddr} ${fitfile}; bootm start ${fileaddr}; run setupfdt1;run setupird;run setupfdt2; bootm loados ${fileaddr}; echo "Booting kernel in"; go ${bbladdr} ${fdtaddr}
+#boot2=fatload mmc 0:1 ${fileaddr} ${fitfile}; bootm start ${fileaddr}; run setupfdt1;run setupird;run setupfdt2; bootm loados ${fileaddr}; echo "Booting kernel in"; go ${bbladdr} ${fdtaddr}
+boot2=fatload mmc 0:1 ${fileaddr} ${fitfile}; bootm start ${fileaddr}; run setupfdt1;run setupird;run setupfdt2; bootm loados ${fileaddr}; echo "Booting kernel in"; booti ${bbladdr} ${irdaddr}:${filesize} ${fdtaddr}
 
 # if you want to network boot, for testing, uncomment the following:
 #boot2=dhcp; env import -t ${fileaddr} ${filesize}; run boot2
