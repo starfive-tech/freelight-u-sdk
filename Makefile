@@ -134,7 +134,7 @@ buildroot_initramfs-menuconfig: $(buildroot_initramfs_wrkdir)/.config $(buildroo
 # use buildroot_initramfs toolchain
 # TODO: fix path and conf/buildroot_rootfs_config
 $(buildroot_rootfs_wrkdir)/.config: $(buildroot_srcdir) $(buildroot_initramfs_tar)
-	rm -rf $(dir $@)
+#	rm -rf $(dir $@)
 	mkdir -p $(dir $@)
 	cp $(buildroot_rootfs_config) $@
 	$(MAKE) -C $< RISCV=$(RISCV) PATH=$(RVPATH) O=$(buildroot_rootfs_wrkdir) olddefconfig
@@ -206,6 +206,20 @@ omxil-build:
 gstomx-build:
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-dirclean
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-rebuild
+
+vpubuild_rootfs: $(vmlinux) wave511-build-rootfs omxil-build-rootfs gstomx-build-rootfs
+wave511-build-rootfs:
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave511-dirclean
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave511-rebuild
+wave521-build-rootfs:
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave521-dirclean
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave521-rebuild
+omxil-build-rootfs:
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-omx-il-dirclean
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-omx-il-rebuild
+gstomx-build-rootfs:
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-gst-omx-dirclean
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-gst-omx-rebuild
 
 .PHONY: initrd
 initrd: $(initramfs)
@@ -307,6 +321,12 @@ clean:
 	rm work/image.fit
 	rm work/initramfs.cpio.gz
 	rm work/linux/vmlinux
+ifeq ($(buildroot_rootfs_ext),$(wildcard $(buildroot_rootfs_ext)))
+	rm work/buildroot_rootfs/images/rootfs.ext4
+endif
+ifeq ($(buildroot_initramfs_tar),$(wildcard $(buildroot_initramfs_tar)))
+	rm work/buildroot_initramfs/images/rootfs.tar
+endif
 
 .PHONY: distclean
 distclean:
@@ -538,7 +558,7 @@ format-nvdla-rootfs: format-nvdla-disk
 	@echo "Done setting up basic initramfs boot. We will now try to install"
 	@echo "a Debian snapshot to the Linux partition, which requires sudo"
 	@echo "you can safely cancel here"
-	sudo $(MKFS_EXT4) $(PART3)
+	sudo $(MKFS_EXT4) -F $(PART3)
 	-mkdir -p tmp-mnt
 	-mkdir -p tmp-rootfs
 	-sudo mount $(PART3) tmp-mnt && \

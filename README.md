@@ -101,6 +101,44 @@ CONFIG_PHY_M31_DPHY_RX0
 CONFIG_DRM_STARFIVE_MIPI_DSI
 ```
 
+## Build SD Card Booting Image
+
+If want to generate the sd card booting image, please modify the following file.
+
+conf/beaglev_defconfig_513:
+
+```
+change
+CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
+to
+CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
+```
+
+HiFive_U-Boot/configs/starfive_vic7100_evb_smode_defconfig:
+
+```
+change
+CONFIG_USE_BOOTCOMMAND is not set
+to
+CONFIG_USE_BOOTCOMMAND=y
+
+change
+#CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
+to
+CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
+```
+
+Then insert the TF card, and run command `df -h` to check the TF card device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the below instruction:
+
+```
+make buildroot_rootfs -jx
+make -jx
+make vpubuild_rootfs
+sudo make clean
+make -jx
+make buildroot_rootfs -jx
+sudo make DISK=/dev/sdX format-nvdla-rootfs && sync
+```
 
 ## Running on Starlight Board ##
 
@@ -121,7 +159,7 @@ Press any key as soon as it starts up to enter the **upgrade menu**. In this men
 	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 	xxxxxxxxxxxFLASH PROGRAMMINGxxxxxxxxx
 	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
+	
 	0:update boot
 	1: quit
 	select the function:
