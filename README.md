@@ -39,7 +39,7 @@ Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
 	$ cd buildroot && git checkout starlight_multimedia && cd ..
-	$ cd HiFive_U-Boot && git checkout Fedora_JH7100_upstream_devel && cd ..
+	$ cd HiFive_U-Boot && git checkout JH7100_Multimedia_V0.1.0 && cd ..
 	$ cd linux && git checkout beaglev-5.13.y_multimedia && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
@@ -73,6 +73,46 @@ make buildroot_initramfs-menuconfig   # initramfs menuconfig
 make buildroot_rootfs-menuconfig      # rootfs menuconfig
 ```
 
+## Build TF Card Booting Image
+
+If you don't already use a local tftp server, then you probably want to make the sdcard target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target sdcard; please modify the following file.
+
+conf/beaglev_defconfig_513:
+
+```
+change
+CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
+to
+CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
+```
+
+HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig:
+
+```
+change
+CONFIG_USE_BOOTCOMMAND is not set
+to
+CONFIG_USE_BOOTCOMMAND=y
+
+change
+#CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
+to
+CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
+```
+
+Please insert the TF card and run command `df -h` to check the device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the following instructions to build TF card image:
+
+```
+make buildroot_rootfs -jx
+make -jx
+make vpubuild_rootfs
+make clean
+make -jx
+make buildroot_rootfs -jx
+make DISK=/dev/sdX format-nvdla-rootfs && sync
+```
+Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
+
 
 ## Running on Starlight Board ##
 
@@ -91,17 +131,17 @@ Press any key as soon as it starts up to enter the **upgrade menu**. In this men
 	DDR clk 2133M,Version: 210302-5aea32f
 	0
 	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-	xxxxxxxxxxxFLASH PROGRAMMINGxxxxxxxxx
+	xxxxxxxxxxxFLASH PROGRAMMINGxxxxxxxxxxxxxxx
 	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 	
 	0:update boot
-	1: quit
+	1:quit
 	select the function:
 
 Type **"0"**  to update the uboot file fw_payload.bin.out via Xmodem mode,
 and then Type **"1"** to exit Flash Programming.
 
-After you will see the information `Starlight #` when press the "f" button, select the installation path
+After that, you will see the information `Starlight #` when press the "f" button, select the installation path
 and install image.fit through TFTP:
 
 Step1: set enviroment parameter:
@@ -121,43 +161,3 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 	buildroot login:root
 	Password: starfive
 
-
-
-## Build SD Card Booting Image
-
-If you don't already use a local tftp server, then you probably want to make the sdcard target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target sdcard; please modify the following file.
-
-conf/beaglev_defconfig_513:
-
-```
-change
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
-to
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
-```
-
-HiFive_U-Boot/configs/starfive_vic7100_evb_smode_defconfig:
-
-```
-change
-CONFIG_USE_BOOTCOMMAND is not set
-to
-CONFIG_USE_BOOTCOMMAND=y
-
-change
-#CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
-to
-CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
-```
-
-Then insert the TF card, and run command `df -h` to check the TF card device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the below instruction:
-
-```
-make buildroot_rootfs -jx
-make -jx
-make vpubuild_rootfs
-sudo make clean
-make -jx
-make buildroot_rootfs -jx
-sudo make DISK=/dev/sdX format-nvdla-rootfs && sync
-```
