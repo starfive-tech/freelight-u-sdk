@@ -3,12 +3,13 @@ ABI ?= lp64d
 TARGET_BOARD := U74
 BOARD_FLAGS	:=
 
-srcdir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-srcdir := $(srcdir:/=)
-confdir := $(srcdir)/conf
+sdkdir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
+sdkdir := $(sdkdir:/=)
+confdir := $(sdkdir)/conf
+srcdir := $(sdkdir)/src
 wrkdir := $(CURDIR)/work
 
-buildroot_srcdir := $(srcdir)/buildroot
+buildroot_srcdir := $(srcdir)/distros/buildroot
 buildroot_initramfs_wrkdir := $(wrkdir)/buildroot_initramfs
 
 # TODO: make RISCV be able to be set to alternate toolchain path
@@ -26,7 +27,7 @@ buildroot_rootfs_wrkdir := $(wrkdir)/buildroot_rootfs
 buildroot_rootfs_ext := $(buildroot_rootfs_wrkdir)/images/rootfs.ext4
 buildroot_rootfs_config := $(confdir)/buildroot_rootfs_config
 
-linux_srcdir := $(srcdir)/linux
+linux_srcdir := $(srcdir)/kernel/linux
 linux_wrkdir := $(wrkdir)/linux
 linux_defconfig := $(confdir)/beaglev_defconfig_513
 
@@ -50,33 +51,32 @@ vfat_image := $(wrkdir)/hifive-unleashed-vfat.part
 
 initramfs := $(wrkdir)/initramfs.cpio.gz
 
-sbi_srcdir := $(srcdir)/opensbi
+sbi_srcdir := $(srcdir)/firmware/opensbi
 sbi_wrkdir := $(wrkdir)/opensbi
 #sbi_bin := $(wrkdir)/opensbi/platform/starfive/vic7100/firmware/fw_payload.bin
 sbi_bin := $(wrkdir)/opensbi/platform/generic/firmware/fw_payload.bin
 fit := $(wrkdir)/image.fit
 
-fesvr_srcdir := $(srcdir)/riscv-fesvr
-fesvr_wrkdir := $(wrkdir)/riscv-fesvr
-libfesvr := $(fesvr_wrkdir)/prefix/lib/libfesvr.so
+#fesvr_srcdir := $(srcdir)/riscv-fesvr
+#fesvr_wrkdir := $(wrkdir)/riscv-fesvr
+#libfesvr := $(fesvr_wrkdir)/prefix/lib/libfesvr.so
 
-spike_srcdir := $(srcdir)/riscv-isa-sim
-spike_wrkdir := $(wrkdir)/riscv-isa-sim
-spike := $(spike_wrkdir)/prefix/bin/spike
+#spike_srcdir := $(srcdir)/riscv-isa-sim
+#spike_wrkdir := $(wrkdir)/riscv-isa-sim
+#spike := $(spike_wrkdir)/prefix/bin/spike
 
-qemu_srcdir := $(srcdir)/riscv-qemu
-qemu_wrkdir := $(wrkdir)/riscv-qemu
-qemu := $(qemu_wrkdir)/prefix/bin/qemu-system-riscv64
+#qemu_srcdir := $(srcdir)/riscv-qemu
+#qemu_wrkdir := $(wrkdir)/riscv-qemu
+#qemu := $(qemu_wrkdir)/prefix/bin/qemu-system-riscv64
 
-uboot_srcdir := $(srcdir)/HiFive_U-Boot
-uboot_wrkdir := $(wrkdir)/HiFive_U-Boot
-uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+uboot_srcdir := $(srcdir)/firmware/u-boot
+uboot_wrkdir := $(wrkdir)/u-boot
+uboot_dtb_file := $(wrkdir)/u-boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
 uboot := $(uboot_wrkdir)/u-boot.bin
 uboot_config := HiFive-U540_regression_defconfig
 
 ifeq ($(TARGET_BOARD),U74)
 	uboot_config := starfive_jh7100_starlight_smode_defconfig
-	# uboot_config := starfive_vic7100_evb_smode_defconfig
 else
 	uboot_config := HiFive-U540_nvdla_iofpga_defconfig
 endif
@@ -321,7 +321,7 @@ fit: $(fit)
 
 .PHONY: clean
 clean:
-	rm -rf work/HiFive_U-Boot
+	rm -rf work/u-boot
 	rm -rf work/opensbi
 	rm work/vmlinux.bin
 	rm work/hifive-unleashed-vfat.part
