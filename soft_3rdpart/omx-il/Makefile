@@ -40,7 +40,7 @@ ALLLIBS=*.a
 RM=rm -f
 MKDIR=mkdir -p
 SOURCES_COMMON = SF_OMX_Core.c SF_OMX_video_common.c 
-SOURCES_COMMON += SF_OMX_Vdec_decoder.c
+SOURCES_COMMON += SF_OMX_Vdec_decoder.c SF_OMX_Venc_encoder.c
 
 SOURCES_TESTS_WAVE521 = wave521test.c
 SOURCES_TESTS_WAVE511 = wave511test.c

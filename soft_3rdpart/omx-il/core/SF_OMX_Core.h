@@ -9,6 +9,7 @@
 #include "OMX_Types.h"
 #include "OMX_Core.h"
 #include "OMX_Component.h"
+#include "OMX_VideoExt.h"
 #include "component.h"
 #include "encoder_listener.h"
 #include "decoder_listener.h"
@@ -36,6 +37,8 @@ void SF_LogMsg(int level, const char *function, int line, const char *format, ..
 #define FunctionIn()
 #define FunctionOut()
 #endif
+#define VPU_OUTPUT_BUF_NUMBER 10
+#define VPU_INPUT_BUF_NUMBER 1
 
 typedef struct _SF_COMPONENT_FUNCTIONS
 {
@@ -88,11 +91,18 @@ typedef struct _SF_COMPONENT_FUNCTIONS
     int (*VPU_GetProductId)(int coreIdx);
     BOOL(*Queue_Enqueue)(Queue *queue, void *data);
     Uint32 (*Queue_Get_Cnt)(Queue *queue);
+    RetCode (*VPU_DecClrDispFlag)(DecHandle handle, int index);
+    RetCode (*VPU_DecGetFrameBuffer)(DecHandle handle, int frameIdx, FrameBuffer* frameBuf);
+    void (*Render_DecClrDispFlag)(void *context, int index);
     // VPU Log
     int (*InitLog)(void);
     void (*DeInitLog)(void);
     void (*SetMaxLogLevel)(int level);
     int (*GetMaxLogLevel)(void);
+    // FrameBuffer
+    void* (*AllocateFrameBuffer2)(ComponentImpl* com, Uint32 size);
+    BOOL (*AttachDMABuffer)(ComponentImpl* com, Uint64 virtAddress, Uint32 size);
+    void (*SetRenderTotalBufferNumber)(ComponentImpl* com, Uint32 number);
 } SF_COMPONENT_FUNCTIONS;
 
 typedef struct _SF_OMX_COMPONENT
@@ -114,11 +124,21 @@ typedef struct _SF_OMX_COMPONENT
     OMX_CALLBACKTYPE *callbacks;
     OMX_PTR pAppData;
     OMX_PARAM_PORTDEFINITIONTYPE portDefinition[2];
+    OMX_VIDEO_PARAM_AVCTYPE AVCComponent[2];
+    OMX_VIDEO_PARAM_HEVCTYPE HEVCComponent[2];
     OMX_BUFFERHEADERTYPE *pBufferArray[64];
     sem_t *inputSemaphore;
     CodStd bitFormat;
     OMX_STRING fwPath;
+    OMX_STRING componentRule;
+    OMX_STATETYPE nextState;
+    OMX_BOOL memory_optimization;
 } SF_OMX_COMPONENT;
+
+typedef struct _SF_PORT_PRIVATE
+{
+    OMX_U32 nPortnumber;
+} SF_PORT_PRIVATE;
 
 #define PRINT_STUCT(a, b)                                   \
     do                                                      \
