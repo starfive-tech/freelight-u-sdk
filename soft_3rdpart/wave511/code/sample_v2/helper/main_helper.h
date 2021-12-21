@@ -577,6 +577,7 @@ Uint8* GetYUVFromFrameBuffer(
 
 BOOL GetYUVFromFrameBuffer2(
     Uint8*          pYuv,
+    Uint8**         pYuv2,
     Uint32          size,
     DecHandle       decHandle,
     FrameBuffer*    fb,
@@ -910,7 +911,9 @@ BOOL BitstreamFeeder_SetHook(
 /************************************************************************/
 #define SOURCE_YUV                  0
 #define SOURCE_YUV_WITH_LOADER      2
-
+#ifdef USE_FEEDING_METHOD_BUFFER
+    #define SOURCE_YUV_WITH_BUFFER  4
+#endif
 typedef struct {
     Uint32   cbcrInterleave;
     Uint32   nv21;
@@ -1409,6 +1412,7 @@ void ReleaseVideoMemory(
     Uint32        count
     );
 
+void *AllocateDecFrameBuffer2(DecHandle decHandle, TestDecConfig* config, Uint32 size, FrameBuffer* retFbArray, vpu_buffer_t* retFbAddrs);
 BOOL AllocateDecFrameBuffer(
     DecHandle       decHandle,
     TestDecConfig*  config,
@@ -1416,6 +1420,10 @@ BOOL AllocateDecFrameBuffer(
     Uint32          linearFbCount,
     FrameBuffer*    retFbArray,
     vpu_buffer_t*   retFbAddrs,
+#if 0
+    vpu_buffer_t*   inFbAddrs,
+    Uint32          inFbCount,
+#endif
     Uint32*         retStride
     );
 

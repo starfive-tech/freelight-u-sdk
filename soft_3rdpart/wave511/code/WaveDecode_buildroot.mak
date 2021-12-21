@@ -7,7 +7,7 @@
 BUILD_CONFIGURATION := EmbeddedRiscvLinux
 
 PRODUCT := WAVE511
-PRODUCT := WAVE521C
+#PRODUCT := WAVE521C
 
 $(shell cp sample_v2/component_list_decoder.h sample_v2/component/component_list.h)
 
