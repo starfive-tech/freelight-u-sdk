@@ -13,14 +13,18 @@ OMX_TICKS gInitTimeStamp = 0;
 int gDebugLevel = SF_LOG_ERR;
 extern SF_OMX_COMPONENT sf_dec_decoder_h265;
 extern SF_OMX_COMPONENT sf_dec_decoder_h264;
+extern SF_OMX_COMPONENT sf_enc_encoder_h265;
+extern SF_OMX_COMPONENT sf_enc_encoder_h264;
 
 static SF_OMX_COMPONENT *sf_omx_component_list[] = {
     &sf_dec_decoder_h265,
     &sf_dec_decoder_h264,
+    &sf_enc_encoder_h265,
+    &sf_enc_encoder_h264,
     NULL,
 };
 
-#define SF_OMX_COMPONENT_NUM (sizeof(sf_omx_component_list) / sizeof(SF_OMX_COMPONENT *))
+#define SF_OMX_COMPONENT_NUM ((sizeof(sf_omx_component_list) / sizeof(SF_OMX_COMPONENT *)) - 1)
 
 int GetNumberOfComponent()
 {
@@ -188,6 +192,23 @@ OMX_API OMX_ERRORTYPE OMX_GetComponentsOfRole(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
 
+    LOG(SF_LOG_INFO, "Role = %s\r\n", role);
+    *pNumComps = 0;
+    for (int i = 0; i < SF_OMX_COMPONENT_NUM; i ++)
+    {
+        if (sf_omx_component_list[i] == NULL)
+        {
+            break;
+        }
+        if (strcmp(sf_omx_component_list[i]->componentRule, role) == 0)
+        {
+            if (compNames != NULL) {
+                strcpy((OMX_STRING)compNames[*pNumComps], sf_omx_component_list[i]->componentName);
+            }
+            *pNumComps = (*pNumComps + 1);
+            LOG(SF_LOG_INFO,"Get component %s, Role = %s\r\n", sf_omx_component_list[i]->componentName, sf_omx_component_list[i]->componentRule)
+        }
+    }
     FunctionOut();
     return ret;
 }
@@ -256,11 +277,19 @@ void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle
     funcs->VPU_GetProductId = dlsym(sohandle, "VPU_GetProductId");
     funcs->Queue_Enqueue = dlsym(sohandle, "Queue_Enqueue");
     funcs->Queue_Get_Cnt = dlsym(sohandle, "Queue_Get_Cnt");
+    funcs->VPU_DecClrDispFlag = dlsym(sohandle, "VPU_DecClrDispFlag");
+    funcs->VPU_DecGetFrameBuffer = dlsym(sohandle, "VPU_DecGetFrameBuffer");
+    funcs->Render_DecClrDispFlag = dlsym(sohandle, "Render_DecClrDispFlag");
     // VPU Log
     funcs->InitLog = dlsym(sohandle, "InitLog");
     funcs->DeInitLog = dlsym(sohandle, "DeInitLog");
     funcs->SetMaxLogLevel = dlsym(sohandle, "SetMaxLogLevel");
     funcs->GetMaxLogLevel = dlsym(sohandle, "GetMaxLogLevel");
+
+    //Renderer
+    funcs->AllocateFrameBuffer2 = dlsym(sohandle, "AllocateFrameBuffer2");
+    funcs->AttachDMABuffer = dlsym(sohandle, "AttachDMABuffer");
+    funcs->SetRenderTotalBufferNumber = dlsym(sohandle, "SetRenderTotalBufferNumber");
     FunctionOut();
 }
 
@@ -343,7 +372,8 @@ OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_
 {
     OMX_U32 i = 0;
     OMX_BUFFERHEADERTYPE *pOMXBuffer;
-
+    FunctionIn();
+    LOG(SF_LOG_INFO, "ADDR=%p\r\n", pAddr);
     for (i = 0; i < sizeof(pSfOMXComponent->pBufferArray) / sizeof(pSfOMXComponent->pBufferArray[0]); i++)
     {
         pOMXBuffer = pSfOMXComponent->pBufferArray[i];
@@ -352,12 +382,12 @@ OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_
             return pOMXBuffer;
         }
     }
-    if (i == sizeof(pSfOMXComponent->pBufferArray))
-    {
-        LOG(SF_LOG_ERR, "could not find buffer!\r\n");
-    }
+    LOG(SF_LOG_ERR, "could not find buffer!\r\n");
+
+    FunctionOut();
     return NULL;
 }
+
 void SF_LogMsg(int level, const char *function, int line, const char *format, ...)
 {
     char *prefix = "";

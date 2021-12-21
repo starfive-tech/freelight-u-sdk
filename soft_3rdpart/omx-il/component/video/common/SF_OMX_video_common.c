@@ -10,6 +10,7 @@ OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATE
     OMX_COMPONENTTYPE *pOMXComponent = NULL;
     SF_OMX_COMPONENT *pSfOMXComponent = NULL;
     ComponentState state;
+    OMX_STATETYPE nextState;
 
     FunctionIn();
     if (hComponent == NULL)
@@ -19,20 +20,25 @@ OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATE
     }
     pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    nextState = pSfOMXComponent->nextState;
     state = pSfOMXComponent->functions->ComponentGetState(pSfOMXComponent->hSFComponentExecoder);
     LOG(SF_LOG_INFO, "state = %d\r\n", state);
+
     switch (state)
     {
     case COMPONENT_STATE_CREATED:
-    case COMPONENT_STATE_PREPARED:
-    case COMPONENT_STATE_NONE:
-        *pState = OMX_StateLoaded;
-        break;
-    case COMPONENT_STATE_TERMINATED:
         *pState = OMX_StateIdle;
         break;
+    case COMPONENT_STATE_NONE:
+    case COMPONENT_STATE_TERMINATED:
+        *pState = OMX_StateLoaded;
+        break;
+    case COMPONENT_STATE_PREPARED:
     case COMPONENT_STATE_EXECUTED:
-        *pState = OMX_StateExecuting;
+        if (nextState == OMX_StateIdle || nextState == OMX_StateExecuting || nextState == OMX_StatePause)
+        {
+            *pState = nextState;
+        }
         break;
     default:
         LOG(SF_LOG_WARN, "unknown state:%d \r\n", state);
@@ -231,10 +237,14 @@ OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
     for (int i = 0; i < 2; i++)
     {
         OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &hComponent->portDefinition[i];
+        OMX_VIDEO_PARAM_AVCTYPE *pAVCComponent = &hComponent->AVCComponent[i];
+        OMX_VIDEO_PARAM_HEVCTYPE *pHEVCComponent = &hComponent->HEVCComponent[i];
         INIT_SET_SIZE_VERSION(pPortDefinition, OMX_PARAM_PORTDEFINITIONTYPE);
+        INIT_SET_SIZE_VERSION(pAVCComponent, OMX_VIDEO_PARAM_AVCTYPE);
+        INIT_SET_SIZE_VERSION(pHEVCComponent, OMX_VIDEO_PARAM_HEVCTYPE);
         pPortDefinition->nPortIndex = i;
-        pPortDefinition->nBufferCountActual = 5;
-        pPortDefinition->nBufferCountMin = 1;
+        pPortDefinition->nBufferCountActual = VPU_OUTPUT_BUF_NUMBER;
+        pPortDefinition->nBufferCountMin = VPU_OUTPUT_BUF_NUMBER;
         pPortDefinition->nBufferSize = 0;
         pPortDefinition->eDomain = OMX_PortDomainVideo;
         pPortDefinition->format.video.nFrameWidth = DEFAULT_FRAME_WIDTH;
@@ -243,6 +253,7 @@ OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
         pPortDefinition->format.video.nSliceHeight = DEFAULT_FRAME_HEIGHT;
         pPortDefinition->format.video.eCompressionFormat = OMX_VIDEO_CodingUnused;
         pPortDefinition->format.video.cMIMEType = malloc(OMX_MAX_STRINGNAME_SIZE);
+        pPortDefinition->format.video.xFramerate = 30;
         if (pPortDefinition->format.video.cMIMEType == NULL)
         {
             ret = OMX_ErrorInsufficientResources;
@@ -256,17 +267,30 @@ OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
         pPortDefinition->format.video.bFlagErrorConcealment = OMX_FALSE;
         pPortDefinition->format.video.eColorFormat = OMX_COLOR_FormatUnused;
         pPortDefinition->bEnabled = OMX_TRUE;
+
+        pAVCComponent->nPortIndex = i;
+        pAVCComponent->nPFrames = 30;
+        pAVCComponent->eProfile = OMX_VIDEO_AVCProfileHigh;
+        pHEVCComponent->nPortIndex = i;
+        pHEVCComponent->nKeyFrameInterval = 30;
+        pHEVCComponent->eProfile = OMX_VIDEO_HEVCProfileMain;
     }
 
     hComponent->portDefinition[0].eDir = OMX_DirInput;
     hComponent->portDefinition[0].nBufferSize = DEFAULT_VIDEO_INPUT_BUFFER_SIZE;
+    hComponent->portDefinition[0].nBufferCountActual = VPU_INPUT_BUF_NUMBER;
+    hComponent->portDefinition[0].nBufferCountMin = VPU_INPUT_BUF_NUMBER;
 
     strcpy(hComponent->portDefinition[1].format.video.cMIMEType, "raw/video");
     hComponent->portDefinition[1].format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
     hComponent->portDefinition[1].eDir = OMX_DirOutput;
     hComponent->portDefinition[1].nBufferSize = DEFAULT_VIDEO_OUTPUT_BUFFER_SIZE;
+    hComponent->portDefinition[1].nBufferCountActual = VPU_OUTPUT_BUF_NUMBER;
+    hComponent->portDefinition[1].nBufferCountMin = VPU_OUTPUT_BUF_NUMBER;
 
     memset(hComponent->pBufferArray, 0, sizeof(hComponent->pBufferArray));
+    hComponent->memory_optimization = OMX_TRUE;
+
     FunctionOut();
 EXIT:
     return ret;
