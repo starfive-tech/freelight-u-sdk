@@ -197,6 +197,7 @@ void LoadSrcYUV2(
     Uint32          coreIdx,
     TiledMapConfig  mapCfg,
     Uint8*          pSrc,
+    Uint8**         pSrc2,
     FrameBuffer*    fbSrc,
     VpuRect         cropRect,
     BOOL            enableCrop,
@@ -1067,6 +1068,7 @@ Uint32 StoreYuvImageBurst2(
     FrameBuffer     *fbSrc,
     TiledMapConfig  mapCfg,
     Uint8           *pDst,
+    Uint8           **pDst2,
     VpuRect         cropRect,
     BOOL            enableCrop
     )
@@ -1135,7 +1137,7 @@ Uint32 StoreYuvImageBurst2(
     totSize = DstSize;
 
     //3. Source YUV Load
-    LoadSrcYUV2(coreIdx, mapCfg, pDst, fbSrc, cropRect, enableCrop,
+    LoadSrcYUV2(coreIdx, mapCfg, pDst, pDst2, fbSrc, cropRect, enableCrop,
         is10bit, is3pxl4byte, isMSB,
         srcWidthY, srcHeightY, srcWidthC, srcHeightC, chroma_stride);
 
@@ -2087,6 +2089,7 @@ void LoadSrcYUV2(
     Uint32          coreIdx,
     TiledMapConfig  mapCfg,
     Uint8*          pSrc,
+    Uint8**         pSrc2,
     FrameBuffer*    fbSrc,
     VpuRect         cropRect,
     BOOL            enableCrop,
@@ -2100,19 +2103,14 @@ void LoadSrcYUV2(
     Uint32          chroma_stride
     )
 {
-    Uint32      y;
     Uint32      pix_addr;
-    Uint8*      puc;
-    Uint8*      rowBufferY, *rowBufferCb, *rowBufferCr;
+    Uint8*      rowBufferY;
 
     Int32       baseY;
-    Int32       baseCb;
-    Int32       baseCr;
 
     Uint8       *pY = NULL;
     Uint8       *pCb = NULL;
     Uint8       *pCr = NULL;
-    Uint32      offsetX, offsetY;
 
     int         interLeave  = fbSrc->cbcrInterleave;
     Uint32      stride      = fbSrc->stride;
@@ -2122,57 +2120,13 @@ void LoadSrcYUV2(
     EndianMode  endian      = (EndianMode)fbSrc->endian;
 #endif
 
-    offsetX   = (enableCrop == TRUE ? cropRect.left : 0);
-    offsetY   = (enableCrop == TRUE ? cropRect.top  : 0);
-
     //base address
     baseY  = fbSrc->bufY;
-    baseCb = fbSrc->bufCb;
-    baseCr = fbSrc->bufCr;
 
-    //1. memory allocation for FPGA YUV frame
-#if 0
-    pY  = (Uint8*)osal_malloc(stride * srcHeightY);
-    if (!pY)
-        return ;
-    if (srcHeightC != 0) {
-        pCb = (Uint8*)osal_malloc(chroma_stride * srcHeightC);
-        if (!pCb)
-            return ;
-        if (interLeave != TRUE) {
-            pCr = (Uint8*)osal_malloc(chroma_stride * srcHeightC);
-            if (!pCr)
-                return ;
-        }
-    }
-#endif
+    VLOG(INFO, "%s %d %x %x %x \r\n", __FUNCTION__, __LINE__, fbSrc->bufY, fbSrc->bufCb, fbSrc->bufCr);
+    
 
-#if 0
-    //2.1 load data from FPGA memory + endian
-    vdi_read_memory(coreIdx, fbSrc->bufY, pY, stride * srcHeightY, endian);
-    if (srcHeightC != 0) {
-        if (!pCb)
-            return ;
-        vdi_read_memory(coreIdx, fbSrc->bufCb, pCb, chroma_stride * srcHeightC, endian);
-        if (interLeave != TRUE) {
-            if (!pCr)
-                return ;
-            vdi_read_memory(coreIdx, fbSrc->bufCr, pCr, chroma_stride * srcHeightC, endian);
-        }
-    }
-#else 
     vdi_read_memory2(coreIdx, fbSrc->bufY, &pY, stride * srcHeightY, endian);
-    if (srcHeightC != 0) {
-        // if (!pCb)
-        //     return ;
-        vdi_read_memory2(coreIdx, fbSrc->bufCb, &pCb, chroma_stride * srcHeightC, endian);
-        if (interLeave != TRUE) {
-            // if (!pCr)
-            //     return ;
-            vdi_read_memory2(coreIdx, fbSrc->bufCr, &pCr, chroma_stride * srcHeightC, endian);
-        }
-    }
-#endif
 
 #if defined(SAVE_YUV)
 #else
@@ -2183,46 +2137,24 @@ void LoadSrcYUV2(
     }
 #endif
 
-    //3.1 : Luma YUV source generate
-    puc = pSrc;
-    for (y = 0; y < srcHeightY; y += 1) {
-        pix_addr = GetXY2AXIAddr(&mapCfg, 0, y + offsetY, 0, stride, fbSrc);
-        rowBufferY = pY + (pix_addr - baseY);
-        osal_memcpy(puc + y*srcWidthY, rowBufferY + offsetX, srcWidthY);
+    pix_addr = fbSrc->bufY + 0xffffffff00000000;
+    rowBufferY = pY + (pix_addr - baseY);
+    VLOG(INFO, "%s %d %x %p %p %p\n", __FUNCTION__, __LINE__, pix_addr, rowBufferY, pSrc, pSrc2);
+    if (pSrc) {
+        osal_memcpy(pSrc, rowBufferY, srcHeightY*srcWidthY*3/2);
     }
-
-    //3.2 : Chroma YUV source generate
-    if (srcHeightC != 0) {
-        //Cb
-        puc = pSrc + srcWidthY*srcHeightY;
-        if ( !pCb )
-            return ;
-        for (y = 0; y < srcHeightC; y += 1) {
-            pix_addr = GetXY2AXIAddr(&mapCfg, 2, y + (offsetY / 2), 0, chroma_stride, fbSrc);
-            rowBufferCb = pCb + (pix_addr - baseCb);
-            osal_memcpy(puc + (y*srcWidthC), rowBufferCb + (offsetX / 2), srcWidthC);
-        }
-
-        //Cr
-        if (interLeave != TRUE) {
-            if ( !pCr )
-                return ;
-            puc = puc + srcWidthC*srcHeightC;
-            for (y = 0; y < srcHeightC; y += 1) {
-                pix_addr = GetXY2AXIAddr(&mapCfg, 3, y + (offsetY / 2), 0, chroma_stride, fbSrc);
-                rowBufferCr = pCr + (pix_addr - baseCr);
-                osal_memcpy(puc + (y*srcWidthC), rowBufferCr + (offsetX / 2), srcWidthC);
-            }
-        }
+    if (pSrc2) {
+        *pSrc2 = rowBufferY;
     }
-
+    // following code store output buffers
 #if 0
-    if (pY)
-        osal_free(pY);
-    if (pCb)
-        osal_free(pCb);
-    if (pCr)
-        osal_free(pCr);
+    {
+        void *virt_addr = vdi_map_virt2(coreIdx, srcHeightY*srcWidthY*3/2, fbSrc->bufY);
+        VLOG(INFO, "------=-==-=-=-==%p, %d\r\n", virt_addr, srcHeightY*srcWidthY*3/2);
+        FILE *fb = fopen("./out_vpu.bcp", "ab+");
+        fwrite(virt_addr, 1, srcHeightY*srcWidthY*3/2, fb);
+        fclose(fb);
+    }
 #endif
 }
 
@@ -3280,6 +3212,7 @@ Uint8* GetYUVFromFrameBuffer(
 
 BOOL GetYUVFromFrameBuffer2(
     Uint8*          pYuv,
+    Uint8**         pYuv2,
     Uint32          size,
     DecHandle       decHandle,
     FrameBuffer*    fb,
@@ -3298,7 +3231,7 @@ BOOL GetYUVFromFrameBuffer2(
     Uint32          picWidth, picHeight;
     TiledMapConfig  mapCfg;
 
-    if (pYuv == NULL) {
+    if (pYuv == NULL && pYuv2 == NULL) {
         return FALSE;
     }
     picWidth  = rcFrame.right - rcFrame.left;
@@ -3332,7 +3265,7 @@ BOOL GetYUVFromFrameBuffer2(
     }
 
     VPU_DecGiveCommand(decHandle, GET_TILEDMAP_CONFIG, &mapCfg);
-    *retSize = StoreYuvImageBurst2(coreIdx, fb, mapCfg, pYuv, rcFrame, TRUE);
+    *retSize = StoreYuvImageBurst2(coreIdx, fb, mapCfg, pYuv, pYuv2, rcFrame, TRUE);
 
     *retWidth  = picWidth;
     *retHeight = picHeight;
