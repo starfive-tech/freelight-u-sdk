@@ -192,8 +192,8 @@ $(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc) $(buildroot_in
 		modules_install
 
 # vpu building depend on the $(vmlinux), $(vmlinux) depend on $(buildroot_initramfs_sysroot)
-# so vpubuild should be built after $(vmlinux)
-vpubuild: $(vmlinux) wave511-build omxil-build gstomx-build
+# so vpubuild should be built seperately
+vpubuild: $(vmlinux) wave511-build wave521-build omxil-build gstomx-build vpudriver-build
 wave511-build:
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511-dirclean
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511-rebuild
@@ -206,8 +206,11 @@ omxil-build:
 gstomx-build:
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-dirclean
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) sf-gst-omx-rebuild
+vpudriver-build:
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511driver
+	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave521driver
 
-vpubuild_rootfs: $(vmlinux) wave511-build-rootfs omxil-build-rootfs gstomx-build-rootfs
+vpubuild_rootfs: $(vmlinux) wave511-build-rootfs wave521-build-rootfs omxil-build-rootfs gstomx-build-rootfs vpudriver-build-rootfs
 wave511-build-rootfs:
 	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave511-dirclean
 	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave511-rebuild
@@ -220,6 +223,10 @@ omxil-build-rootfs:
 gstomx-build-rootfs:
 	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-gst-omx-dirclean
 	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) sf-gst-omx-rebuild
+vpudriver-build-rootfs:
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave511driver
+	$(MAKE) -C $(buildroot_rootfs_wrkdir) O=$(buildroot_rootfs_wrkdir) wave521driver
+
 
 .PHONY: initrd
 initrd: $(initramfs)

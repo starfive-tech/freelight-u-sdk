@@ -14,7 +14,7 @@ make MKFS_VFAT="/sbin/mkfs.vfat" \
     PARTPROBE="/sbin/partprobe" \
     SGDISK="/sbin/sgdisk" \
     -j${CORES}
-make vpubuild
+make vpudriver-build
 rm -rf work/buildroot_initramfs/images/rootfs.tar
 make MKFS_VFAT="/sbin/mkfs.vfat" \
     MKFS_EXT4="/sbin/mkfs.ext4" \
