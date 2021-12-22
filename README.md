@@ -22,7 +22,7 @@ Install required additional packages.
 	$ sudo apt-get install autoconf automake autotools-dev bc bison xxd \
 	build-essential curl flex gawk gdisk git gperf libgmp-dev \
 	libmpc-dev libmpfr-dev libncurses-dev libssl-dev libtool \
-	patchutils python screen texinfo unzip zlib1g-dev device-tree-compiler
+	patchutils python screen texinfo unzip zlib1g-dev device-tree-compiler libyaml-dev
 
 ## Fetch code Instructions ##
 
@@ -38,10 +38,10 @@ fail because certain dependencies don't have the best git hosting.
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
-	$ cd buildroot && git checkout starlight_multimedia && cd ..
-	$ cd HiFive_U-Boot && git checkout JH7100_Multimedia_V0.1.0 && cd ..
-	$ cd linux && git checkout beaglev-5.13.y_multimedia && cd ..
-	$ cd opensbi && git checkout master && cd ..
+	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_Multimedia_V0.1.0 && cd ..
+	$ cd linux && git checkout --track origin/beaglev-5.13.y_multimedia && cd ..
+	$ cd opensbi && git checkout --track origin/master && cd ..
 
 ## Build Instructions ##
 
@@ -49,10 +49,10 @@ After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
 
-By default, the above generated image does not contain VPU module(wave511, the video hard decode driver and openmax-il framework library).  The following instructions will add VPU module according to your requirement:
+By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
 
 	$ make -jx
-	$ make vpubuild
+	$ make vpudriver-build
 	$ rm -rf work/buildroot_initramfs/images/rootfs.tar
 	$ make -jx
 
@@ -72,6 +72,96 @@ make uboot-menuconfig      # uboot menuconfig
 make buildroot_initramfs-menuconfig   # initramfs menuconfig
 make buildroot_rootfs-menuconfig      # rootfs menuconfig
 ```
+
+## How to Switch Display Framework Between DRM and Framebuffer
+
+The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
+
+If switch from `DRM`to `Framebuffer` display framework (`hdmi` display device), 
+
+```
+1. Disable the DRM feature:
+   CONFIG_DRM_I2C_NXP_TDA998X
+   CONFIG_DRM_I2C_NXP_TDA9950
+   CONFIG_DRM_STARFIVE
+
+2. Enable the Framebuffer feature:
+   CONFIG_FB_STARFIVE
+   CONFIG_FB_STARFIVE_HDMI_TDA998X
+   CONFIG_FB_STARFIVE_VIDEO
+
+Note: Recommend Disable the below for usdk:
+   CONFIG_NVDLA
+   CONFIG_FRAMEBUFFER_CONSOLE
+```
+
+If switch from `Framebuffer` to `DRM` display framework ( `hdmi` display device):
+
+```
+1. Disable the below kernel config
+   CONFIG_FB_STARFIVE
+   CONFIG_FB_STARFIVE_HDMI_TDA998X
+   CONFIG_FB_STARFIVE_VIDEO
+   CONFIG_NVDLA
+   CONFIG_FRAMEBUFFER_CONSOLE
+
+2. Enable the below kernel config:
+   CONFIG_DRM_I2C_NXP_TDA998X
+   CONFIG_DRM_I2C_NXP_TDA9950
+   CONFIG_DRM_STARFIVE
+
+Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
+```
+
+If switch  from `Framebuffer`  to `DRM` display framework (`mipi dsi` display device):
+
+```
+based on the above drm to hdmi pipeline config, enable the below kernel config:
+CONFIG_PHY_M31_DPHY_RX0
+CONFIG_DRM_STARFIVE_MIPI_DSI
+```
+
+## How to Support WM8960 and AC108 Audio Board 
+
+The starlight board natively always support PWMDAC  to audio out, also support WM8960 board to audio in and audio out, also support AC108 board to audio in. Note that the WM8960 and AC108 could not be both supported.
+
+ If support WM8960 board, need to modify the follow:
+
+> HiFive_U-Boot/board/starfive/jh7100/jh7100.c:
+>
+> > #define STARFIVE_AUDIO_AC108    0
+> > #define STARFIVE_AUDIO_WM8960    1
+> > #define STARFIVE_AUDIO_VAD        0
+> > #define STARFIVE_AUDIO_PWMDAC    1
+> > #define STARFIVE_AUDIO_SPDIF    0
+> > #define STARFIVE_AUDIO_PDM        0
+>
+> HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dts:
+>
+> > /* #include "codecs/sf_pdm.dtsi" \*/
+> > /\* #include "codecs/sf_spdif.dtsi" \*/
+> > /\* #include "codecs/sf_ac108.dtsi" \*/
+> > #include "codecs/sf_wm8960.dtsi"
+> > /\* #include "codecs/sf_vad.dtsi" \*/
+
+ If support AC108 board, need to modify the follow:
+
+> HiFive_U-Boot/board/starfive/jh7100/jh7100.c:
+>
+> > #define STARFIVE_AUDIO_AC108    1
+> > #define STARFIVE_AUDIO_WM8960    0
+> > #define STARFIVE_AUDIO_VAD        0
+> > #define STARFIVE_AUDIO_PWMDAC    1
+> > #define STARFIVE_AUDIO_SPDIF    0
+> > #define STARFIVE_AUDIO_PDM        0
+>
+> HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dts:
+>
+> > /* #include "codecs/sf_pdm.dtsi" \*/
+> > /\* #include "codecs/sf_spdif.dtsi" \*/
+> > #include "codecs/sf_ac108.dtsi"
+> > /\*#include "codecs/sf_wm8960.dtsi" \*/
+> > /\* #include "codecs/sf_vad.dtsi" \*/
 
 ## Build TF Card Booting Image
 
