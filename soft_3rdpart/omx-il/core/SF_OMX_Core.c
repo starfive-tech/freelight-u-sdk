@@ -290,6 +290,7 @@ void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle
     funcs->AllocateFrameBuffer2 = dlsym(sohandle, "AllocateFrameBuffer2");
     funcs->AttachDMABuffer = dlsym(sohandle, "AttachDMABuffer");
     funcs->SetRenderTotalBufferNumber = dlsym(sohandle, "SetRenderTotalBufferNumber");
+    funcs->WaitForExecoderReady = dlsym(sohandle, "WaitForExecoderReady");
     FunctionOut();
 }
 

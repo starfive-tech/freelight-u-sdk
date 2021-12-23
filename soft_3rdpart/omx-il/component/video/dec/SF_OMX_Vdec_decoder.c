@@ -119,8 +119,8 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
 
         LOG(SF_LOG_PERF, "OMX finish one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
             pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
-        LOG(SF_LOG_INFO, "indexFrameDisplay = %d, OMXBuferFlag = %d, VPUBufferAddr = %p, OMXBufferAddr = %p\r\n", 
-                        pPortContainerExternal->nFlags, (OMX_U32)pOMXBuffer->pOutputPortPrivate, pPortContainerExternal->pAppPrivate, pOMXBuffer->pBuffer);
+        LOG(SF_LOG_INFO, "indexFrameDisplay = %d, OMXBuferFlag = %d, OMXBufferAddr = %p\r\n",
+                        pPortContainerExternal->nFlags, (OMX_U32)pOMXBuffer->pOutputPortPrivate, pOMXBuffer->pBuffer);
         ComponentImpl *pRendererComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
         LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
                                                     pSfOMXComponent->portDefinition[1].nBufferCountActual);

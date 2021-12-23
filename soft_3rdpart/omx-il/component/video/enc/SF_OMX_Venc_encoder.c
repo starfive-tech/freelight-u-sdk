@@ -16,6 +16,10 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     FunctionIn();
     SF_OMX_COMPONENT *pSfOMXComponent = GetSFOMXComponrntByComponent(com);
     ComponentImpl *pSFComponent = (ComponentImpl *)com;
+    static OMX_U32 dec_cnt = 0;
+    static struct timeval tv_old = {0};
+    OMX_U32 fps = 0;
+    OMX_U64 diff_time = 0; // ms
     PortContainerExternal *pPortContainerExternal = (PortContainerExternal *)data;
     OMX_BUFFERHEADERTYPE *pOMXBuffer;
 
@@ -34,6 +38,11 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         struct timeval tv;
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
         gettimeofday(&tv, NULL);
+        if (gInitTimeStamp == 0)
+        {
+            gInitTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec;
+        }
+
         pOMXBuffer->nFilledLen = pPortContainerExternal->nFilledLen;
         pOMXBuffer->nTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec - gInitTimeStamp;
         pOMXBuffer->nFlags = pPortContainerExternal->nFlags;
@@ -45,15 +54,21 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
                 fclose(fb);
             }
 #endif
+        if (dec_cnt == 0) {
+            tv_old = tv;
+        }
+        if (dec_cnt++ >= 50) {
+            diff_time = (tv.tv_sec - tv_old.tv_sec) * 1000 + (tv.tv_usec - tv_old.tv_usec) / 1000;
+            fps = 1000  * (dec_cnt - 1) / diff_time;
+            dec_cnt = 0;
+            LOG(SF_LOG_WARN, "Decoding fps: %d \r\n", fps);
+        }
         LOG(SF_LOG_PERF, "OMX finish one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n", pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
         pSfOMXComponent->callbacks->FillBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
     }
     break;
     case COMPONENT_EVENT_ENC_REGISTER_FB:
     {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        gInitTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec;
         pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, OMX_EventPortSettingsChanged,
                                                  1, OMX_IndexParamPortDefinition, NULL);
     }
@@ -98,7 +113,8 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     pPortContainerExternal->pBuffer = pBuffer->pBuffer;
     pPortContainerExternal->nFilledLen = pBuffer->nFilledLen;
     pPortContainerExternal->nFlags = pBuffer->nFlags;
-    LOG(SF_LOG_PERF, "Buffer flag = %X\r\n", pBuffer->nFlags);
+    pPortContainerExternal->nBufferIndex = (OMX_U32)pBuffer->pInputPortPrivate;
+    LOG(SF_LOG_INFO, "Index = %d, Address = %p, Flag = %X\r\n",(int)pBuffer->pInputPortPrivate, pBuffer->pBuffer, pBuffer->nFlags);
     if (pSfOMXComponent->functions->Queue_Enqueue(pFeederComponent->srcPort.inputQ, (void *)pPortContainerExternal) != OMX_TRUE)
     {
         LOG(SF_LOG_ERR, "%p:%p FAIL\r\n", pFeederComponent->srcPort.inputQ, pPortContainerExternal);
@@ -156,6 +172,8 @@ EXIT:
     return ret;
 }
 
+static int nOutBufIndex = 0;
+
 static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_IN OMX_HANDLETYPE hComponent,
     OMX_INOUT OMX_BUFFERHEADERTYPE **ppBufferHdr,
@@ -205,7 +223,9 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    ComponentImpl *pComponentFeeder = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
     OMX_U32 i = 0;
+    FunctionIn();
 
     OMX_BUFFERHEADERTYPE *temp_bufferHeader = (OMX_BUFFERHEADERTYPE *)malloc(sizeof(OMX_BUFFERHEADERTYPE));
     if (temp_bufferHeader == NULL)
@@ -214,29 +234,50 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
         return OMX_ErrorInsufficientResources;
     }
     memset(temp_bufferHeader, 0, sizeof(OMX_BUFFERHEADERTYPE));
-    temp_bufferHeader->pBuffer = malloc(nSizeBytes);
+
+    temp_bufferHeader->nAllocLen = nSizeBytes;
+    temp_bufferHeader->pAppPrivate = pAppPrivate;
+
+    if (nPortIndex == 0)
+    {
+        // Alloc DMA memory first
+        if (pSfOMXComponent->memory_optimization)
+        {
+            temp_bufferHeader->pBuffer = pSfOMXComponent->functions->AllocateFrameBuffer2(pComponentFeeder, nSizeBytes);
+        }
+        // DMA Memory alloc fail, goto normal alloc
+        if (temp_bufferHeader->pBuffer == NULL)
+        {
+            pSfOMXComponent->memory_optimization = OMX_FALSE;
+            temp_bufferHeader->pBuffer = malloc(nSizeBytes);
+            memset(temp_bufferHeader->pBuffer, 0, nSizeBytes);
+            LOG(SF_LOG_PERF, "Use normal buffer\r\n");
+        }
+        else
+        {
+            LOG(SF_LOG_PERF, "Use DMA buffer\r\n");
+            temp_bufferHeader->pInputPortPrivate = (OMX_PTR)nOutBufIndex;
+            nOutBufIndex ++;
+        }
+    }
+    else if (nPortIndex == 1)
+    {
+        temp_bufferHeader->pBuffer = malloc(nSizeBytes);
+
+        memset(temp_bufferHeader->pBuffer, 0, nSizeBytes);
+    }
+
     if (temp_bufferHeader->pBuffer == NULL)
     {
         free(temp_bufferHeader);
         LOG(SF_LOG_ERR, "malloc fail\r\n");
         return OMX_ErrorInsufficientResources;
     }
-    memset(temp_bufferHeader->pBuffer, 0, nSizeBytes);
-    temp_bufferHeader->nAllocLen = nSizeBytes;
-    temp_bufferHeader->pAppPrivate = pAppPrivate;
-    temp_bufferHeader->nOutputPortIndex = temp_bufferHeader->nInputPortIndex = -1;
-    if (nPortIndex == 1) {
-        temp_bufferHeader->nOutputPortIndex = 1;
-    } 
-    else if (nPortIndex == 0)
-    {
-        temp_bufferHeader->nInputPortIndex = 0;
-    }
     *ppBuffer = temp_bufferHeader;
-
+    LOG(SF_LOG_INFO, "pBuffer address = %p\r\n", temp_bufferHeader->pBuffer);
     ret = StoreOMXBuffer(pSfOMXComponent, temp_bufferHeader);
-    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
-EXIT:
+    LOG(SF_LOG_PERF, "alloc size = %d, buffer count = %d\r\n",nSizeBytes, GetOMXBufferCount(pSfOMXComponent));
+
     FunctionOut();
 
     return ret;
@@ -874,6 +915,25 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 ret = OMX_ErrorIncorrectStateTransition;
                 break;
             case COMPONENT_STATE_CREATED:
+                if (pSFComponentEncoder->thread == NULL)
+                {
+                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentEncoder->name);
+                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentEncoder);
+                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
+                }
+                if (pSFComponentFeeder->thread == NULL)
+                {
+                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentFeeder->name);
+                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentFeeder);
+                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
+                }
+                if (pSFComponentRender->thread == NULL)
+                {
+                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentRender->name);
+                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentRender);
+                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
+                }
+                pSfOMXComponent->functions->WaitForExecoderReady(pSFComponentEncoder);
                 break;
             case COMPONENT_STATE_PREPARED:
             case COMPONENT_STATE_EXECUTED:
@@ -905,24 +965,6 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 ret = OMX_ErrorIncorrectStateTransition;
                 break;
             case COMPONENT_STATE_CREATED:
-                if (pSFComponentEncoder->thread == NULL)
-                {
-                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentEncoder->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentEncoder);
-                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
-                }
-                if (pSFComponentFeeder->thread == NULL)
-                {
-                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentFeeder->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentFeeder);
-                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
-                }
-                if (pSFComponentRender->thread == NULL)
-                {
-                    LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentRender->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentRender);
-                    LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
-                }
                 break;
             case COMPONENT_STATE_PREPARED:
             case COMPONENT_STATE_EXECUTED:

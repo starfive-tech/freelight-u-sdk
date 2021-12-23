@@ -61,6 +61,9 @@ typedef struct {
     Int32                       feedingNum;
     TiledMapConfig              mapConfig;
     Int32                       productID;
+    BOOL                        MemoryOptimization;
+    int                         totalBufferNumber;
+    int                         currentBufferNumber;
 } YuvFeederContext;
 
 static void InitYuvFeederContext(YuvFeederContext* ctx, CNMComponentConfig* componentParam) 
@@ -95,7 +98,7 @@ static CNMComponentParamRet GetParameterYuvFeeder(ComponentImpl* from, Component
 
     switch(commandType) {
     case GET_PARAM_YUVFEEDER_FRAME_BUF:
-        if (ctx->fbAllocated == FALSE) return CNM_COMPONENT_PARAM_NOT_READY;
+        if (ctx->fbAllocated == FALSE || ctx->currentBufferNumber < ctx->totalBufferNumber) return CNM_COMPONENT_PARAM_NOT_READY;
         allocFb = (ParamEncFrameBuffer*)data;
         allocFb->reconFb          = ctx->pFbRecon;
         allocFb->srcFb            = ctx->pFbSrc;
@@ -123,6 +126,86 @@ static CNMComponentParamRet SetParameterYuvFeeder(ComponentImpl* from, Component
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
+void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
+{
+    YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
+    EncOpenParam            encOpenParam = ctx->encOpenParam;
+    Uint32                  fbWidth = 0;
+    Uint32                  fbHeight = 0;
+    Uint32                  fbStride = 0;
+    // Uint32                  fbSize = 0;
+    SRC_FB_TYPE             srcFbType = SRC_FB_TYPE_YUV;
+    // DRAMConfig              dramConfig;
+    // DRAMConfig*             pDramConfig = NULL;
+    TiledMapType            mapType;
+    FrameBufferAllocInfo    fbAllocInfo;
+    int i = 0;
+
+    if (ctx->handle == NULL) {
+        ctx->MemoryOptimization = FALSE;
+        return NULL;
+    }
+    osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
+    // osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
+
+    //Buffers for source frames
+    if (PRODUCT_ID_W_SERIES(ctx->productID)) {
+        fbWidth = VPU_ALIGN8(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN8(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.sourceEndian;
+    } else {
+        //CODA
+        fbWidth = VPU_ALIGN16(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN16(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.frameEndian;
+        // VPU_EncGiveCommand(ctx->handle, GET_DRAM_CONFIG, &dramConfig);
+        // pDramConfig = &dramConfig;
+    }
+
+
+    if (SRC_FB_TYPE_YUV == srcFbType) {
+        mapType = LINEAR_FRAME_MAP;
+    }
+    fbStride = CalcStride(fbWidth, fbHeight, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, mapType, FALSE);
+    // fbSize = VPU_GetFrameBufSize(ctx->handle, encOpenParam.coreIdx, fbStride, fbHeight, mapType, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, pDramConfig);
+
+    fbAllocInfo.format  = (FrameBufferFormat)encOpenParam.srcFormat;
+    fbAllocInfo.cbcrInterleave = encOpenParam.cbcrInterleave;
+    fbAllocInfo.mapType = mapType;
+    fbAllocInfo.stride  = fbStride;
+    fbAllocInfo.height  = fbHeight;
+    fbAllocInfo.size    = size;
+    fbAllocInfo.type    = FB_TYPE_PPU;
+    fbAllocInfo.num     = ctx->fbCount.srcFbNum;
+    fbAllocInfo.nv21    = encOpenParam.nv21;
+
+    if (PRODUCT_ID_NOT_W_SERIES(ctx->productID)) {
+        fbAllocInfo.lumaBitDepth = 8;
+        fbAllocInfo.chromaBitDepth = 8;
+    }
+
+    for (i = 0;i < ENC_SRC_BUF_NUM; i ++){
+        if (ctx->pFbSrcMem[i].phys_addr == 0)
+        {
+            VLOG(INFO, "Found empty frame at index %d\r\n", i);
+            break;
+        }
+    }
+    if (i == MAX_REG_FRAME)
+    {
+        VLOG(ERR, "Could not found empty frame at index\r\n");
+        return NULL;
+    }
+
+    if (FALSE == AllocFBMemory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i], &ctx->pFbSrc[i], size, 1, ENC_SRC, ctx->handle->instIndex)) {
+        VLOG(ERR, "failed to allocate source buffers\n");
+        return NULL;
+    }
+    ctx->srcFbAllocInfo = fbAllocInfo;
+    ctx->currentBufferNumber ++;
+    return (void *)ctx->pFbSrcMem[i].virt_addr;
+}
+
 static BOOL AllocateFrameBuffer(ComponentImpl* com) {
     YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
     EncOpenParam            encOpenParam = ctx->encOpenParam;
@@ -138,6 +221,10 @@ static BOOL AllocateFrameBuffer(ComponentImpl* com) {
 
     osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
     osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
+
+    if (ctx->MemoryOptimization) {
+        goto alloc_fbc;
+    }
 
     //Buffers for source frames
     if (PRODUCT_ID_W_SERIES(ctx->productID)) {
@@ -181,6 +268,7 @@ static BOOL AllocateFrameBuffer(ComponentImpl* com) {
     }
     ctx->srcFbAllocInfo = fbAllocInfo;
 
+alloc_fbc:
     //Buffers for reconstructed frames
     osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
 
@@ -367,7 +455,29 @@ static BOOL ExecuteYuvFeeder(ComponentImpl* com, PortContainer* in, PortContaine
         return TRUE;
     }
 #endif
-    ret = YuvFeeder_Feed(ctx->yuvFeeder, encOpenParam->coreIdx, &sinkData->fb, encOpenParam->picWidth, encOpenParam->picHeight, sinkData->srcFbIndex, extraFeedingInfo);
+    if (ctx->MemoryOptimization)
+    {
+        Uint32 nBufferIndex = input->nBufferIndex;
+        Uint32 totalCount = Queue_Get_Cnt(com->sinkPort.inputQ);
+        Uint32 i = 0;
+        ret = TRUE;
+        for(i = 0; i < totalCount; i ++) {
+            VLOG(INFO, "Input index = %d, Output index = %d\n", nBufferIndex, sinkData->srcFbIndex);
+            if (nBufferIndex == sinkData->srcFbIndex) {
+                break;
+            }
+            void *tmp = ComponentPortGetData(&com->sinkPort);
+            Queue_Enqueue(com->sinkPort.inputQ, (void *)tmp);
+            sinkData = (PortContainerYuv*)ComponentPortPeekData(&com->sinkPort);
+        }
+        if (i == totalCount)
+        {
+            VLOG(ERR, "Could not find match index!\n");
+            ret = FALSE;
+        }
+    } else {
+        ret = YuvFeeder_Feed(ctx->yuvFeeder, encOpenParam->coreIdx, &sinkData->fb, encOpenParam->picWidth, encOpenParam->picHeight, sinkData->srcFbIndex, extraFeedingInfo);
+    }
 
     if (ret == FALSE) {
         ctx->last = sinkData->last = TRUE;
@@ -433,7 +543,9 @@ static Component CreateYuvFeeder(ComponentImpl* com, CNMComponentConfig* compone
 
 
     ctx->productID = componentParam->testEncConfig.productId;
-
+    ctx->MemoryOptimization = TRUE;
+    ctx->totalBufferNumber = 5;
+    ctx->currentBufferNumber = 0;
     return (Component)com;
 }
 

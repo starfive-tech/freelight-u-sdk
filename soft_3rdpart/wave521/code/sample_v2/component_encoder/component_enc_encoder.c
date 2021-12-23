@@ -943,6 +943,23 @@ static BOOL OpenEncoder(ComponentImpl* com)
     return TRUE;
 }
 
+void WaitForExecoderReady(ComponentImpl *com)
+{
+    EncoderContext* ctx             = (EncoderContext*)com->context;
+    uint32_t timeout = 50;
+
+    while (ctx->state < ENCODER_STATE_REGISTER_FB)
+    {
+        VLOG(INFO, "%s, %d\n", __FUNCTION__, timeout);
+        usleep(100 * 1000);
+        timeout --;
+        if (timeout <= 0)
+        {
+            return;
+        }
+    }
+}
+
 static BOOL ExecuteEncoder(ComponentImpl* com, PortContainer* in, PortContainer* out)
 {
     EncoderContext* ctx             = (EncoderContext*)com->context;

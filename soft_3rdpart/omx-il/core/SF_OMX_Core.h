@@ -38,7 +38,7 @@ void SF_LogMsg(int level, const char *function, int line, const char *format, ..
 #define FunctionOut()
 #endif
 #define VPU_OUTPUT_BUF_NUMBER 10
-#define VPU_INPUT_BUF_NUMBER 1
+#define VPU_INPUT_BUF_NUMBER 5
 
 typedef struct _SF_COMPONENT_FUNCTIONS
 {
@@ -103,6 +103,7 @@ typedef struct _SF_COMPONENT_FUNCTIONS
     void* (*AllocateFrameBuffer2)(ComponentImpl* com, Uint32 size);
     BOOL (*AttachDMABuffer)(ComponentImpl* com, Uint64 virtAddress, Uint32 size);
     void (*SetRenderTotalBufferNumber)(ComponentImpl* com, Uint32 number);
+    void (*WaitForExecoderReady)(ComponentImpl *com)
 } SF_COMPONENT_FUNCTIONS;
 
 typedef struct _SF_OMX_COMPONENT
