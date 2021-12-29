@@ -6,14 +6,6 @@ MAKEFILE_DIR=$(sdkdir)/scripts
 # For SDK build ENV, it should be the first.
 include $(MAKEFILE_DIR)/sdk_env.mk
 
-include $(MAKEFILE_DIR)/distro_buildroot.mk
-include $(MAKEFILE_DIR)/distro_buildroot_image.mk
-
-include $(MAKEFILE_DIR)/firmware_opensbi.mk
-include $(MAKEFILE_DIR)/firmware_u-boot.mk
-
-include $(MAKEFILE_DIR)/kernel_linux.mk
-
 .PHONY: all nvdla-demo
 nvdla-demo: $(fit) $(vfat_image)
 	@echo "To completely erase, reformat, and program a disk sdX, run:"
@@ -64,8 +56,16 @@ endif
 distclean:
 	rm -rf -- $(wrkdir) $(toolchain_dest)
 
-include $(MAKEFILE_DIR)/virtual_test.mk
+include $(MAKEFILE_DIR)/distro_buildroot.mk
+include $(MAKEFILE_DIR)/distro_buildroot_image.mk
 
-#-include $(initramfs).d
+include $(MAKEFILE_DIR)/firmware_opensbi.mk
+include $(MAKEFILE_DIR)/firmware_u-boot.mk
+
+include $(MAKEFILE_DIR)/kernel_linux.mk
+
+-include $(initramfs).d
+
+include $(MAKEFILE_DIR)/virtual_test.mk
 
 #-include $(MAKEFILE_DIR)/debug.mk
