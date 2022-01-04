@@ -20,10 +20,14 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <asm/io.h>
-#include <soc/starfive/vic7100.h>
+#include <soc/sifive/sifive_l2_cache.h>
 #include "../../../vpuapi/vpuconfig.h"
 
 #include "vpu.h"
+#include "vdec-starfive.h"
+
+#define starfive_flush_dcache(start, len) \
+	sifive_l2_flush64_range(start, len)
 
 //#define ENABLE_DEBUG_MSG
 #ifdef ENABLE_DEBUG_MSG
@@ -33,8 +37,10 @@
 #endif
 
 /* definitions to be changed as customer  configuration */
-/* if you want to have clock gating scheme frame by frame */
-/* #define VPU_SUPPORT_CLOCK_CONTROL */
+/* if linux version is 5.15 or later, then can use clock and reset framework */
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5,15,0)
+#define VPU_SUPPORT_CLOCK_CONTROL
+#endif
 
 /* if the driver want to use interrupt service from kernel ISR */
 #define VPU_SUPPORT_ISR
@@ -888,19 +894,20 @@ INTERRUPT_REMAIN_IN_QUEUE:
 
     case VDI_IOCTL_SET_CLOCK_GATE:
         {
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
             u32 clkgate;
 
             DPRINTK("[VPUDRV][+]VDI_IOCTL_SET_CLOCK_GATE\n");
             if (get_user(clkgate, (u32 __user *) arg))
                 return -EFAULT;
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
+
             if (clkgate)
                 vpu_clk_enable(s_vpu_clk);
             else
                 vpu_clk_disable(s_vpu_clk);
-#endif
-            DPRINTK("[VPUDRV][-]VDI_IOCTL_SET_CLOCK_GATE\n");
 
+            DPRINTK("[VPUDRV][-]VDI_IOCTL_SET_CLOCK_GATE\n");
+#endif
         }
         break;
     case VDI_IOCTL_GET_INSTANCE_POOL:
@@ -1081,7 +1088,9 @@ INTERRUPT_REMAIN_IN_QUEUE:
         break;
     case VDI_IOCTL_RESET:
         {
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
             vpu_hw_reset();
+#endif
         }
         break;
     case VDI_IOCTL_GET_REGISTER_INFO:
@@ -1307,11 +1316,13 @@ static int vpu_probe(struct platform_device *pdev)
 {
     int err = 0;
     struct resource *res = NULL;
+
 #ifdef VPU_SUPPORT_RESERVED_VIDEO_MEMORY
 	struct resource res_cma;
 	struct device_node *node;
 #endif
     DPRINTK("[VPUDRV] vpu_probe\n");
+
 	if(pdev){
 		vpu_dev = &pdev->dev;
 		vpu_dev->coherent_dma_mask = 0xffffffff;;
@@ -1350,6 +1361,7 @@ static int vpu_probe(struct platform_device *pdev)
         goto ERROR_PROVE_DEVICE;
     }
 
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
     if (pdev)
         s_vpu_clk = vpu_clk_get(&pdev->dev);
     else
@@ -1359,8 +1371,13 @@ static int vpu_probe(struct platform_device *pdev)
         printk(KERN_ERR "[VPUDRV] : not support clock controller.\n");
     else
         DPRINTK("[VPUDRV] : get clock controller s_vpu_clk=%p\n", s_vpu_clk);
+#endif
 
 #ifdef VPU_SUPPORT_CLOCK_CONTROL
+    err = starfive_vdec_clk_rst_init(pdev);
+    if (err){
+        goto ERROR_PROVE_DEVICE; 
+    }
 #else
     vpu_clk_enable(s_vpu_clk);
     vpu_hw_reset();
@@ -1467,7 +1484,9 @@ static int vpu_remove(struct platform_device *pdev)
     if (s_vpu_register.virt_addr)
         iounmap((void *)s_vpu_register.virt_addr);
 
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
     vpu_clk_put(s_vpu_clk);
+#endif
 
     return 0;
 }
@@ -1497,7 +1516,11 @@ static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 
     DPRINTK("[VPUDRV] vpu_suspend\n");
 
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+    starfive_vdec_clk_enable(&pdev->dev);
+#else
     vpu_clk_enable(s_vpu_clk);
+#endif
 
     if (s_vpu_open_ref_count > 0) {
         for (core = 0; core < MAX_NUM_VPU_CORE; core++) {
@@ -1542,12 +1565,20 @@ static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
         }
     }
 
+ #ifdef VPU_SUPPORT_CLOCK_CONTROL
+    starfive_vdec_clk_disable(&pdev->dev);
+#else
     vpu_clk_disable(s_vpu_clk);
+#endif
     return 0;
 
 DONE_SUSPEND:
 
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+    starfive_vdec_clk_disable(&pdev->dev);
+#else
     vpu_clk_disable(s_vpu_clk);
+#endif
 
     return -EAGAIN;
 
@@ -1569,7 +1600,11 @@ static int vpu_resume(struct platform_device *pdev)
 
     DPRINTK("[VPUDRV] vpu_resume\n");
 
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+    starfive_vdec_clk_enable(&pdev->dev);
+#else
     vpu_clk_enable(s_vpu_clk);
+#endif
 
     for (core = 0; core < MAX_NUM_VPU_CORE; core++) {
 
@@ -1672,13 +1707,23 @@ static int vpu_resume(struct platform_device *pdev)
         }
     }
 
-    if (s_vpu_open_ref_count == 0)
+    if (s_vpu_open_ref_count == 0){
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+        starfive_vdec_clk_disable(&pdev->dev);
+#else
         vpu_clk_disable(s_vpu_clk);
+#endif
+    }
 
 DONE_WAKEUP:
 
-    if (s_vpu_open_ref_count > 0)
+    if (s_vpu_open_ref_count > 0){
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+        starfive_vdec_clk_enable(&pdev->dev);
+#else
         vpu_clk_enable(s_vpu_clk);
+#endif
+    }
 
     return 0;
 }
@@ -1746,6 +1791,12 @@ static int __init vpu_init(void)
 
 static void __exit vpu_exit(void)
 {
+
+#ifdef VPU_SUPPORT_CLOCK_CONTROL
+    starfive_vdec_clk_disable(vpu_dev);
+    starfive_vdec_rst_assert(vpu_dev);
+#endif
+
 #ifdef VPU_SUPPORT_PLATFORM_DRIVER_REGISTER
     DPRINTK("[VPUDRV] vpu_exit\n");
 
@@ -1753,11 +1804,10 @@ static void __exit vpu_exit(void)
 
 #else /* VPU_SUPPORT_PLATFORM_DRIVER_REGISTER */
 
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
-#else
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
     vpu_clk_disable(s_vpu_clk);
-#endif
     vpu_clk_put(s_vpu_clk);
+#endif
 
     if (s_instance_pool.base) {
 #ifdef USE_VMALLOC_FOR_INSTANCE_POOL_MEMORY
