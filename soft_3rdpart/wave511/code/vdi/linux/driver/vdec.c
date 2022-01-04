@@ -20,10 +20,14 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <asm/io.h>
-#include <soc/starfive/vic7100.h>
+#include <soc/sifive/sifive_l2_cache.h>
 #include "../../../vpuapi/vpuconfig.h"
 
 #include "vpu.h"
+#include "vdec-starfive.h"
+
+#define starfive_flush_dcache(start, len) \
+	sifive_l2_flush64_range(start, len)
 
 //#define ENABLE_DEBUG_MSG
 #ifdef ENABLE_DEBUG_MSG
@@ -31,10 +35,6 @@
 #else
 #define DPRINTK(args...)
 #endif
-
-/* definitions to be changed as customer  configuration */
-/* if you want to have clock gating scheme frame by frame */
-/* #define VPU_SUPPORT_CLOCK_CONTROL */
 
 /* if the driver want to use interrupt service from kernel ISR */
 #define VPU_SUPPORT_ISR
@@ -52,7 +52,6 @@
 //#define VPU_SUPPORT_RESERVED_VIDEO_MEMORY
 
 #define VPU_PLATFORM_DEVICE_NAME "vdec"
-#define VPU_CLK_NAME "vcodec"
 #define VPU_DEV_NAME "vdec"
 
 /* if the platform driver knows this driver */
@@ -108,12 +107,6 @@ static video_mm_t s_vmem;
 static vpudrv_buffer_t s_video_memory = {0};
 #endif /*VPU_SUPPORT_RESERVED_VIDEO_MEMORY*/
 
-static int vpu_hw_reset(void);
-static void vpu_clk_disable(struct clk *clk);
-static int vpu_clk_enable(struct clk *clk);
-static struct clk *vpu_clk_get(struct device *dev);
-static void vpu_clk_put(struct clk *clk);
-
 /* end customer definition */
 static vpudrv_buffer_t s_instance_pool = {0};
 static vpudrv_buffer_t s_common_memory = {0};
@@ -121,7 +114,6 @@ static vpu_drv_context_t s_vpu_drv_context;
 static int s_vpu_major;
 static struct cdev s_vpu_cdev;
 
-static struct clk *s_vpu_clk;
 static int s_vpu_open_ref_count;
 #ifdef VPU_SUPPORT_ISR
 static int s_vpu_irq = VPU_IRQ_NUM;
@@ -240,24 +232,6 @@ static u32  s_vpu_reg_store[MAX_NUM_VPU_CORE][64];
 #define WriteVpuRegister(addr, val) *(volatile unsigned int *)(s_vpu_register.virt_addr + s_bit_firmware_info[core].reg_base_offset + addr) = (unsigned int)val
 #define WriteVpu(addr, val)         *(volatile unsigned int *)(addr) = (unsigned int)val;
 
-#define vic_readl(addr)             readl((void __iomem *)addr)
-#define vic_writel(val,addr)        writel(val,(void __iomem *)addr)
-
-#define rstgen_Software_RESET_BASE_REG_ADDR     0x11840000
-#define rstgen_Software_RESET_assert0_OFFSET    (0x0)
-#define rstgen_Software_RESET_status0_OFFSET    (0x10)
-#define NBIT_RSTN_VDEC_BRG_MAIN                 13
-#define NBIT_RSTN_VDEC_AXI                      14
-#define NBIT_RSTN_VDEC_BCLK                     15
-#define NBIT_RSTN_VDEC_CCLK                     16
-#define NBIT_RSTN_VDEC_APB                      17
-
-#define clk_BASE_REG_ADDR                       0x11800000
-#define clk_vdec_axi_ctrl_REG_OFFSET            (0xac)
-#define clk_vdecbrg_mainclk_ctrl_REG_OFFSET     (0xb0)
-#define clk_vdec_bclk_ctrl_REG_OFFSET           (0xb4)
-#define clk_vdec_cclk_ctrl_REG_OFFSET           (0xb8)
-#define clk_vdec_apb_ctrl_REG_OFFSET            (0xbc)
 
 static int vpu_alloc_dma_buffer(vpudrv_buffer_t *vb)
 {
@@ -887,19 +861,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
         break;
 
     case VDI_IOCTL_SET_CLOCK_GATE:
-        {
-            u32 clkgate;
-
-            DPRINTK("[VPUDRV][+]VDI_IOCTL_SET_CLOCK_GATE\n");
-            if (get_user(clkgate, (u32 __user *) arg))
-                return -EFAULT;
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
-            if (clkgate)
-                vpu_clk_enable(s_vpu_clk);
-            else
-                vpu_clk_disable(s_vpu_clk);
-#endif
-            DPRINTK("[VPUDRV][-]VDI_IOCTL_SET_CLOCK_GATE\n");
+        {  
 
         }
         break;
@@ -1081,7 +1043,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
         break;
     case VDI_IOCTL_RESET:
         {
-            vpu_hw_reset();
+ 
         }
         break;
     case VDI_IOCTL_GET_REGISTER_INFO:
@@ -1350,21 +1312,11 @@ static int vpu_probe(struct platform_device *pdev)
         goto ERROR_PROVE_DEVICE;
     }
 
-    if (pdev)
-        s_vpu_clk = vpu_clk_get(&pdev->dev);
-    else
-        s_vpu_clk = vpu_clk_get(NULL);
-
-    if (!s_vpu_clk)
-        printk(KERN_ERR "[VPUDRV] : not support clock controller.\n");
-    else
-        DPRINTK("[VPUDRV] : get clock controller s_vpu_clk=%p\n", s_vpu_clk);
-
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
-#else
-    vpu_clk_enable(s_vpu_clk);
-    vpu_hw_reset();
-#endif
+    /*get and init clocks and resets*/
+    err = starfive_vdec_clk_rst_init(pdev);
+    if (err){
+        goto ERROR_PROVE_DEVICE; 
+    }
 
 #ifdef VPU_SUPPORT_ISR
 #ifdef VPU_SUPPORT_PLATFORM_DRIVER_REGISTER
@@ -1467,8 +1419,6 @@ static int vpu_remove(struct platform_device *pdev)
     if (s_vpu_register.virt_addr)
         iounmap((void *)s_vpu_register.virt_addr);
 
-    vpu_clk_put(s_vpu_clk);
-
     return 0;
 }
 #endif /*VPU_SUPPORT_PLATFORM_DRIVER_REGISTER*/
@@ -1497,7 +1447,7 @@ static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 
     DPRINTK("[VPUDRV] vpu_suspend\n");
 
-    vpu_clk_enable(s_vpu_clk);
+    starfive_vdec_clk_enable(&pdev->dev);
 
     if (s_vpu_open_ref_count > 0) {
         for (core = 0; core < MAX_NUM_VPU_CORE; core++) {
@@ -1542,12 +1492,13 @@ static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
         }
     }
 
-    vpu_clk_disable(s_vpu_clk);
+    starfive_vdec_clk_disable(&pdev->dev);
+
     return 0;
 
 DONE_SUSPEND:
 
-    vpu_clk_disable(s_vpu_clk);
+    starfive_vdec_clk_disable(&pdev->dev);
 
     return -EAGAIN;
 
@@ -1569,7 +1520,7 @@ static int vpu_resume(struct platform_device *pdev)
 
     DPRINTK("[VPUDRV] vpu_resume\n");
 
-    vpu_clk_enable(s_vpu_clk);
+    starfive_vdec_clk_enable(&pdev->dev);
 
     for (core = 0; core < MAX_NUM_VPU_CORE; core++) {
 
@@ -1673,12 +1624,12 @@ static int vpu_resume(struct platform_device *pdev)
     }
 
     if (s_vpu_open_ref_count == 0)
-        vpu_clk_disable(s_vpu_clk);
+        starfive_vdec_clk_disable(&pdev->dev);
 
 DONE_WAKEUP:
 
     if (s_vpu_open_ref_count > 0)
-        vpu_clk_enable(s_vpu_clk);
+        starfive_vdec_clk_enable(&pdev->dev);
 
     return 0;
 }
@@ -1746,18 +1697,16 @@ static int __init vpu_init(void)
 
 static void __exit vpu_exit(void)
 {
+
+    starfive_vdec_clk_disable(vpu_dev);
+    starfive_vdec_rst_assert(vpu_dev);
+
 #ifdef VPU_SUPPORT_PLATFORM_DRIVER_REGISTER
     DPRINTK("[VPUDRV] vpu_exit\n");
 
     platform_driver_unregister(&vpu_driver);
 
 #else /* VPU_SUPPORT_PLATFORM_DRIVER_REGISTER */
-
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
-#else
-    vpu_clk_disable(s_vpu_clk);
-#endif
-    vpu_clk_put(s_vpu_clk);
 
     if (s_instance_pool.base) {
 #ifdef USE_VMALLOC_FOR_INSTANCE_POOL_MEMORY
@@ -1818,176 +1767,3 @@ MODULE_LICENSE("GPL");
 
 module_init(vpu_init);
 module_exit(vpu_exit);
-
-static void _set_reset(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg,int ibit)
-{
-    unsigned int read_value;
-	read_value = vic_readl(p_assert_reg);
-    read_value    &= ~(0x1<<ibit);
-    read_value    |= (0x1&0x1)<<ibit;
-	vic_writel(read_value,p_assert_reg);
-
-    do {
-        read_value = (vic_readl(p_status_reg))>>ibit;
-        read_value &= 0x1;
-    } while(read_value!=0x0);
-}
-
-static void _clr_reset(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg,int ibit)
-{
-    unsigned int read_value;
-	read_value = vic_readl(p_assert_reg);
-    read_value    &= ~(0x1<<ibit);
-	read_value	  |= (0x0&0x1)<<ibit;
-	vic_writel(read_value,p_assert_reg);
-
-    do {
-        read_value = (vic_readl(p_status_reg))>>ibit;
-        read_value &= 0x1;
-    } while(read_value!=0x1);
-}
-
-static void _enable_clk(volatile unsigned long p_reg,int ibit)
-{
-    unsigned int read_value;
-	read_value = vic_readl(p_reg);
-    read_value &= ~(0x1<<ibit);
-    read_value |= (0x1&0x1)<<ibit;
-	vic_writel(read_value,p_reg);
-}
-
-static void _disable_clk(volatile unsigned long p_reg,int ibit)
-{
-    unsigned int read_value;
-	read_value = vic_readl(p_reg);
-    read_value &= ~(0x1<<ibit);
-	read_value |= (0x0&0x1)<<ibit;
-	vic_writel(read_value,p_reg);
-}
-
-static void _reset_assert(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg)
-{
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BRG_MAIN);
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_APB);
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_AXI);
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BCLK);
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_CCLK);
-}
-
-static void _reset_clear(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg)
-{
-    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BRG_MAIN);
-    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_AXI);
-    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BCLK);
-    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_CCLK);
-    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_APB);
-}
-
-static int _reset(void)
-{
-    volatile unsigned long p_breg = (unsigned long)ioremap_nocache(rstgen_Software_RESET_BASE_REG_ADDR,0x20);
-
-    if(!p_breg){
-        return -1;
-    }
-
-    _reset_assert(p_breg+rstgen_Software_RESET_assert0_OFFSET,p_breg+rstgen_Software_RESET_status0_OFFSET);
-
-    mdelay(1);
-
-    _reset_clear(p_breg+rstgen_Software_RESET_assert0_OFFSET,p_breg+rstgen_Software_RESET_status0_OFFSET);
-
-    iounmap((void *)p_breg);
-
-    return 0;
-}
-
-static int _clk_control(int enable)
-{
-    volatile unsigned long p_breg = (unsigned long)ioremap_nocache(clk_BASE_REG_ADDR,0x100);
-    if(!p_breg){
-        return -1;
-    }
-
-    if(enable){
-        _enable_clk(p_breg+clk_vdec_axi_ctrl_REG_OFFSET,31);
-        _enable_clk(p_breg+clk_vdecbrg_mainclk_ctrl_REG_OFFSET,31);
-        _enable_clk(p_breg+clk_vdec_bclk_ctrl_REG_OFFSET,31);
-        _enable_clk(p_breg+clk_vdec_cclk_ctrl_REG_OFFSET,31);
-        _enable_clk(p_breg+clk_vdec_apb_ctrl_REG_OFFSET,31);
-    }
-    else
-    {
-        _disable_clk(p_breg+clk_vdec_axi_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vdecbrg_mainclk_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vdec_bclk_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vdec_cclk_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vdec_apb_ctrl_REG_OFFSET,31);
-    }
-
-    iounmap((void *)p_breg);
-
-    return 0;
-}
-
-int vpu_hw_reset(void)
-{
-    _reset();
-    DPRINTK("[VPUDRV] reset vpu hardware. \n");
-    return 0;
-}
-
-struct clk *vpu_clk_get(struct device *dev)
-{
-    return clk_get(dev, VPU_CLK_NAME);
-}
-void vpu_clk_put(struct clk *clk)
-{
-    if (!(clk == NULL || IS_ERR(clk)))
-        clk_put(clk);
-}
-int vpu_clk_enable(struct clk *clk)
-{
-    if (!(clk == NULL || IS_ERR(clk))) {
-        /* the bellow is for C&M EVB.*/
-        /*
-        {
-            struct clk *s_vpuext_clk = NULL;
-            s_vpuext_clk = clk_get(NULL, "vcore");
-            if (s_vpuext_clk)
-            {
-                DPRINTK("[VPUDRV] vcore clk=%p\n", s_vpuext_clk);
-                clk_enable(s_vpuext_clk);
-            }
-
-            DPRINTK("[VPUDRV] vbus clk=%p\n", s_vpuext_clk);
-            if (s_vpuext_clk)
-            {
-                s_vpuext_clk = clk_get(NULL, "vbus");
-                clk_enable(s_vpuext_clk);
-            }
-        }
-        */
-        /* for C&M EVB. */
-
-        DPRINTK("[VPUDRV] vpu_clk_enable\n");
-        //customers needs implementation to turn on clock like clk_enable(clk)
-        return 1;
-    }
-
-    _clk_control(1);
-
-    return 0;
-}
-
-void vpu_clk_disable(struct clk *clk)
-{
-    if (!(clk == NULL || IS_ERR(clk))) {
-        DPRINTK("[VPUDRV] vpu_clk_disable\n");
-        //customers needs implementation to turn off clock like clk_disable(clk)
-    }
-
-    _clk_control(0);
-}
-
-
