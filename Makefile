@@ -2,7 +2,7 @@ ISA ?= rv64imafdc
 ABI ?= lp64d
 TARGET_BOARD := U74
 BOARD_FLAGS	:=
-HWBOARD ?= starlight-a1
+HWBOARD ?= visionfive
 
 srcdir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 srcdir := $(srcdir:/=)
@@ -118,7 +118,7 @@ all: check_arg $(fit) $(flash_image)
 
 check_arg:
 ifeq ( , $(filter $(HWBOARD), starlight starlight-a1 visionfive))
-	$(error board $(HWBOARD) is not supported, BOARD=[starlight | starlight-a1(default) | visionfive])
+	$(error board $(HWBOARD) is not supported, BOARD=[starlight | starlight-a1 | visionfive(deflault)])
 endif
 
 # TODO: depracated for now

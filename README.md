@@ -49,6 +49,13 @@ After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
 
+Usdk support different hardware boards, you should specify the board you use when build the project. Now usdk support fit image build for three starfive boards:
+starlight, starlight-a1 or visionfive.
+
+You can choose your target board with assigning HWBOARD,
+eg. `make HWBOARD=visionfive`, or just **default visionfive**.
+You can also specify the target to build, e.g. `make visionfive`.
+
 By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
 
 	$ make -jx
@@ -176,7 +183,9 @@ to
 CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
 ```
 
-HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig:
+HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig(using starlight or starlight-a1 board)
+or
+HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig (using visionfive board):
 
 ```
 change
