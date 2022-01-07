@@ -2,6 +2,7 @@ ISA ?= rv64imafdc
 ABI ?= lp64d
 TARGET_BOARD := U74
 BOARD_FLAGS	:=
+HWBOARD ?= visionfive
 
 srcdir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 srcdir := $(srcdir:/=)
@@ -38,7 +39,7 @@ ifeq ($(TARGET_BOARD),U74)
 export TARGET_BOARD
 	BOARD_FLAGS += -DTARGET_BOARD_U74
 	bbl_link_addr :=0x80700000
-	its_file=$(confdir)/u74_nvdla-uboot-fit-image.its
+	its_file=$(confdir)/$(HWBOARD)-uboot-fit-image.its
 else
 	bbl_link_addr :=0x80000000
 	its_file=$(confdir)/nvdla-uboot-fit-image.its
@@ -75,8 +76,16 @@ uboot := $(uboot_wrkdir)/u-boot.bin
 uboot_config := HiFive-U540_regression_defconfig
 
 ifeq ($(TARGET_BOARD),U74)
+ifeq ($(HWBOARD), starlight)
 	uboot_config := starfive_jh7100_starlight_smode_defconfig
-	# uboot_config := starfive_vic7100_evb_smode_defconfig
+	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+else ifeq ($(HWBOARD), starlight-a1)
+	uboot_config := starfive_jh7100_starlight_smode_defconfig
+	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight-a1.dtb
+else ifeq ($(HWBOARD), visionfive)
+	uboot_config := starfive_jh7100_visionfive_smode_defconfig
+	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-visionfive.dtb
+endif
 else
 	uboot_config := HiFive-U540_nvdla_iofpga_defconfig
 endif
@@ -86,8 +95,8 @@ rootfs := $(wrkdir)/rootfs.bin
 
 target_gcc ?= $(CROSS_COMPILE)gcc
 
-.PHONY: all nvdla-demo
-nvdla-demo: $(fit) $(vfat_image)
+.PHONY: all nvdla-demo check_arg
+nvdla-demo: check_arg $(fit) $(vfat_image)
 	@echo "To completely erase, reformat, and program a disk sdX, run:"
 	@echo "  make DISK=/dev/sdX format-nvdla-disk"
 	@echo "  ... you will need gdisk and e2fsprogs installed"
@@ -95,7 +104,7 @@ nvdla-demo: $(fit) $(vfat_image)
 	@echo "  This can be done manually if needed"
 	@echo
 
-all: $(fit) $(flash_image)
+all: check_arg $(fit) $(flash_image)
 	@echo
 	@echo "This image has been generated for an ISA of $(ISA) and an ABI of $(ABI)"
 	@echo "Find the image in work/image.fit, which should be copied to an MSDOS boot partition 1"
@@ -107,6 +116,11 @@ all: $(fit) $(flash_image)
 	@echo "  This can be done manually if needed"
 	@echo
 
+check_arg:
+ifeq ( , $(filter $(HWBOARD), starlight starlight-a1 visionfive))
+	$(error board $(HWBOARD) is not supported, BOARD=[starlight | starlight-a1 | visionfive(deflault)])
+endif
+
 # TODO: depracated for now
 #ifneq ($(RISCV),$(buildroot_initramfs_wrkdir)/host)
 #$(target_gcc):
@@ -114,6 +128,23 @@ all: $(fit) $(flash_image)
 #else
 #$(target_gcc): $(buildroot_initramfs_tar)
 #endif
+
+.PHONY: visionfive starlight starlight-a1
+
+visionfive: HWBOARD := visionfive
+visionfive: uboot_config := starfive_jh7100_visionfive_smode_defconfig
+visionfive: uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-visionfive.dtb
+visionfive: nvdla-demo
+
+starlight: HWBOARD := starlight
+starlight: uboot_config = starfive_jh7100_starlight_smode_defconfig
+starlight: uboot_dtb_file = $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+starlight: nvdla-demo
+
+starlight-a1: HWBOARD := starlight-a1
+starlight-a1: uboot_config = starfive_jh7100_starlight_smode_defconfig
+starlight-a1: uboot_dtb_file = $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight-a1.dtb
+starlight-a1: nvdla-demo
 
 $(buildroot_initramfs_wrkdir)/.config: $(buildroot_srcdir)
 	rm -rf $(dir $@)
