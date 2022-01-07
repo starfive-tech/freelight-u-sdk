@@ -1144,7 +1144,7 @@ void *AllocateDecFrameBuffer2(DecHandle decHandle, TestDecConfig* config, Uint32
     frameBufferAllocInfo.num = 1;
 
     vdi_allocate_dma_memory(coreIndex, vb, DEC_FB_LINEAR, decHandle->instIndex);
-    VLOG(ERR, "%lx %lx %lx\r\n", vb->base, vb->virt_addr, vb->phys_addr);
+    VLOG(INFO, "base = %lx virt_addr = %lx phys_addr = %lx\r\n", vb->base, vb->virt_addr, vb->phys_addr);
     retFbArray->bufY  = vb->phys_addr;
     retFbArray->bufCb = (PhysicalAddress)-1;
     retFbArray->bufCr = (PhysicalAddress)-1;
@@ -1175,7 +1175,7 @@ BOOL AttachDecDMABuffer(DecHandle decHandle, TestDecConfig* config, Uint64 virtA
     vdi_virt_to_phys(coreIndex, vb);
 
     vdi_attach_dma_memory(coreIndex, vb);
-    VLOG(ERR, "%lx %lx %x\r\n", vb->base, vb->virt_addr, vb->phys_addr);
+    VLOG(INFO, "base addr = %lx virt addr= %lx phys addr = %x\r\n", vb->base, vb->virt_addr, vb->phys_addr);
 
     retFbArray->bufY  = vb->phys_addr;
     retFbArray->bufCb = (PhysicalAddress)-1;
@@ -1262,7 +1262,6 @@ BOOL AllocateDecFrameBuffer(
     *retStride     = seqInfo.picWidth;
     framebufStride = CalcStride(seqInfo.picWidth, seqInfo.picHeight, format, config->cbcrInterleave, config->mapType, FALSE);
     framebufHeight = seqInfo.picHeight;
-    VLOG(ERR, "height = %d\r\n", framebufHeight);
     framebufSize   = VPU_GetFrameBufSize(decHandle, decHandle->coreIdx, framebufStride, framebufHeight,
                                             config->mapType, format, config->cbcrInterleave, pDramCfg);
 #else

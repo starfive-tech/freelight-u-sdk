@@ -484,8 +484,8 @@ static BOOL ExecuteYuvFeeder(ComponentImpl* com, PortContainer* in, PortContaine
     }
 #ifdef USE_FEEDING_METHOD_BUFFER
     if (input != NULL) {
-        ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
         ComponentPortGetData(&com->srcPort);
+        ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
     }
     if ((input->nFlags & 0x1) == 0x1)
     {

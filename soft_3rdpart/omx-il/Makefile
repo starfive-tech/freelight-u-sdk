@@ -42,9 +42,6 @@ MKDIR=mkdir -p
 SOURCES_COMMON = SF_OMX_Core.c SF_OMX_video_common.c 
 SOURCES_COMMON += SF_OMX_Vdec_decoder.c SF_OMX_Venc_encoder.c
 
-SOURCES_TESTS_WAVE521 = wave521test.c
-SOURCES_TESTS_WAVE511 = wave511test.c
-
 VPATH  = component/video/common:
 VPATH += component/video/enc:
 VPATH += component/video/dec:
@@ -53,19 +50,10 @@ VPATH += tests:
 
 OBJECTNAMES_COMMON=$(patsubst %.c,%.o,$(SOURCES_COMMON))
 OBJECTPATHS_COMMON=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES_COMMON)))
-OBJECTNAMES_WAVE521=$(patsubst %.c,%.o,$(SOURCES_TESTS_WAVE521))
-OBJECTPATHS_WAVE521=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES_WAVE521)))
-OBJECTNAMES_WAVE511=$(patsubst %.c,%.o,$(SOURCES_TESTS_WAVE511))
-OBJECTPATHS_WAVE511=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES_WAVE511)))
+
 
 all: CREATE_DIR $(OBJECTPATHS_COMMON)
 	$(CC) -fPIC -shared -o libsf-omx-il.so $(LDFLAGS) $(OBJECTPATHS_COMMON)
-
-wave521-test: CREATE_DIR $(OBJECTPATHS_WAVE521)
-	$(CC) -o wave521test $(LDFLAGS) $(OBJECTPATHS_WAVE521) -lsf-omx-il -L./
-
-wave511-test: CREATE_DIR $(OBJECTPATHS_WAVE511)
-	$(CC) -o wave511test $(LDFLAGS) $(OBJECTPATHS_WAVE511) -lsf-omx-il -L./
 
 clean:
 

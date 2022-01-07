@@ -170,8 +170,8 @@ static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* 
                     else {
                         output->nFlags = 0x10;
                     }
-                    ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
                     ComponentPortGetData(&com->sinkPort);
+                    ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
 #else
                     if (ctx->fp) {
                         osal_fwrite(buf, readSize, 1, ctx->fp);
@@ -193,8 +193,8 @@ static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* 
                         else {
                             output->nFlags = 0x10;
                         }
-                        ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
                         ComponentPortGetData(&com->sinkPort);
+                        ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
 #else
                         if (ctx->fp) {
                             osal_fwrite(buf, readSize, 1, ctx->fp);
@@ -232,8 +232,8 @@ static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* 
                     output->nFlags = 0x10;
                 }
 
-                ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
                 ComponentPortGetData(&com->sinkPort);
+                ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
 #else
                 Uint8* buf = (Uint8*)osal_malloc(srcData->size);
                 if (ctx->bsReader != 0) {

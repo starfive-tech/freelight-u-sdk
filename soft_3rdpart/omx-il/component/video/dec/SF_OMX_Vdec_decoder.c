@@ -130,10 +130,39 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     break;
     case COMPONENT_EVENT_DEC_REGISTER_FB:
     {
-        FrameBuffer *frameBuffer = (FrameBuffer *)data;
-        LOG(SF_LOG_INFO, "Get Output width = %d, height = %d\r\n", frameBuffer->width, frameBuffer->height);
-        // pSfOMXComponent->portDefinition[1].format.video.nFrameWidth = frameBuffer->width;
-        // pSfOMXComponent->portDefinition[1].format.video.nFrameHeight = frameBuffer->height;
+        /*The width and height vpu return will align to 16, eg: 1080 will be 1088. so check scale value at first.*/
+        TestDecConfig *testConfig = (TestDecConfig *)pSfOMXComponent->testConfig;
+        OMX_U32 nWidth = testConfig->scaleDownWidth;
+        OMX_U32 nHeight = testConfig->scaleDownHeight;
+        if (nWidth <= 0 || nHeight <= 0)
+        {
+            /*If scale value not set, then get value from vpu*/
+            FrameBuffer *frameBuffer = (FrameBuffer *)data;
+            nWidth = frameBuffer->width;
+            nHeight = frameBuffer->height;
+        }
+
+        LOG(SF_LOG_INFO, "Get Output width = %d, height = %d\r\n", nWidth, nHeight);
+        pSfOMXComponent->portDefinition[1].format.video.nFrameWidth = nWidth;
+        pSfOMXComponent->portDefinition[1].format.video.nFrameHeight = nHeight;
+        pSfOMXComponent->portDefinition[1].format.video.nStride = nWidth;
+        pSfOMXComponent->portDefinition[1].format.video.nSliceHeight = nHeight;
+
+        /*Caculate buffer size by eColorFormat*/
+        switch (pSfOMXComponent->portDefinition[1].format.video.eColorFormat)
+        {
+        case OMX_COLOR_FormatYUV420Planar:
+        case OMX_COLOR_FormatYUV420SemiPlanar:
+            if (nWidth && nHeight) {
+                pSfOMXComponent->portDefinition[1].nBufferSize = (nWidth * nHeight * 3) / 2;
+            }
+            break;
+        default:
+            if (nWidth && nHeight) {
+                pSfOMXComponent->portDefinition[1].nBufferSize = nWidth * nHeight * 2;
+            }
+            break;
+        }
         pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, OMX_EventPortSettingsChanged,
                                                  1, OMX_IndexParamPortDefinition, NULL);
     }
@@ -314,6 +343,12 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
     ComponentImpl *pComponentRender = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
 
+    FunctionIn();
+    if (nSizeBytes == 0)
+    {
+        LOG(SF_LOG_ERR, "nSizeBytes = %d\r\n", nSizeBytes);
+        return OMX_ErrorBadParameter;
+    }
     OMX_BUFFERHEADERTYPE *temp_bufferHeader = (OMX_BUFFERHEADERTYPE *)malloc(sizeof(OMX_BUFFERHEADERTYPE));
     if (temp_bufferHeader == NULL)
     {
@@ -548,9 +583,12 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                 int scaleh = pInputPort->format.video.nFrameHeight / height;
                 if (scalew > 8 || scaleh > 8 || scalew < 1 || scaleh < 1)
                 {
-                    LOG(SF_LOG_ERR, "Scaling should be 1 to 1/8 (down-scaling only)!\r\n");
-                    ret = OMX_ErrorBadParameter;
-                    goto EXIT;
+                    int nInputWidth = pInputPort->format.video.nFrameWidth;
+                    int nInputHeight = pInputPort->format.video.nFrameHeight;
+                    LOG(SF_LOG_WARN, "Scaling should be 1 to 1/8 (down-scaling only)! Use input parameter. "
+                        "OutPut[%d, %d]. Input[%d, %d]\r\n", width, height, nInputWidth, nInputHeight);
+                    width = nInputWidth;
+                    height = nInputHeight;
                 }
             }
             pOutputPort->format.video.nFrameWidth = width;
@@ -789,36 +827,6 @@ static OMX_ERRORTYPE InitDecoder(SF_OMX_COMPONENT *pSfOMXComponent)
     return OMX_ErrorNone;
 }
 
-static OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent)
-{
-    ComponentImpl *pRendererComponent = pSfOMXComponent->hSFComponentRender;
-    ComponentImpl *pFeederComponent = pSfOMXComponent->hSFComponentFeeder;
-    OMX_U32 inputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ);
-    OMX_U32 OutputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ);
-
-    FunctionIn();
-    LOG(SF_LOG_PERF, "Flush %d-%d buffers on inputPort-outputPort\r\n", inputQueueCount, OutputQueueCount);
-    if (inputQueueCount > 0)
-    {
-        PortContainerExternal *input = NULL;
-        while ((input = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pFeederComponent->srcPort)) != NULL)
-        {
-            pSfOMXComponent->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
-        }
-    }
-    if (OutputQueueCount > 0)
-    {
-        PortContainerExternal *output = NULL;
-        while ((output = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pRendererComponent->sinkPort)) != NULL)
-        {
-            output->nFlags = 0x1;
-            output->nFilledLen = 0;
-            pSfOMXComponent->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
-        }
-    }
-    FunctionOut();
-}
-
 static OMX_ERRORTYPE SF_OMX_SendCommand(
     OMX_IN OMX_HANDLETYPE hComponent,
     OMX_IN OMX_COMMANDTYPE Cmd,
@@ -912,7 +920,8 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                     pSFComponentDecoder->pause = OMX_TRUE;
                     pSFComponentFeeder->pause = OMX_TRUE;
                     pSFComponentRender->pause = OMX_TRUE;
-                    FlushBuffer(pSfOMXComponent);
+                    FlushBuffer(pSfOMXComponent, 0);
+                    FlushBuffer(pSfOMXComponent, 1);
                 }
                 break;
             }
@@ -975,10 +984,13 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                                                  OMX_EventCmdComplete, OMX_CommandStateSet, nParam, NULL);
         break;
     case OMX_CommandFlush:
-        FlushBuffer(pSfOMXComponent);
+    {
+        OMX_U32 nPort = nParam;
+        FlushBuffer(pSfOMXComponent, nPort);
         pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData,
                                                  OMX_EventCmdComplete, OMX_CommandFlush, nParam, NULL);
-        break;
+    }
+    break;
     case OMX_CommandPortDisable:
         pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData,
                                                  OMX_EventCmdComplete, OMX_CommandPortDisable, nParam, NULL);

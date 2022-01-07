@@ -43,7 +43,9 @@ BitstreamReader BitstreamReader_Create(
 {
     AbstractBitstreamReader* reader;
     osal_file_t *fp=NULL;
+#ifdef USE_FEEDING_METHOD_BUFFER
 
+#else
     if ( path[0] != 0) {
         if ((fp=osal_fopen(path, "wb")) == NULL) {
             VLOG(ERR, "%s:%d failed to open bin file: %s\n", __FUNCTION__, __LINE__, path);
@@ -53,7 +55,7 @@ BitstreamReader BitstreamReader_Create(
     }
     else
         VLOG(ERR, "%s:%d Bitstream File path is NULL : no save\n", __FUNCTION__, __LINE__);
-
+#endif
     reader = (AbstractBitstreamReader*)osal_malloc(sizeof(AbstractBitstreamReader));
 
     reader->fp      = fp;

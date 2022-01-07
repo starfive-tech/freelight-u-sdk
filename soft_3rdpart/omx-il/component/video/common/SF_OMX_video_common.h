@@ -39,6 +39,7 @@ extern "C"
     OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState);
     OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent);
     OMX_ERRORTYPE ComponentClearCommon(SF_OMX_COMPONENT *hComponent);
+    OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort);
 
 #ifdef __cplusplus
 }

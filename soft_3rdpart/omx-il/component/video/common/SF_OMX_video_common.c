@@ -322,3 +322,53 @@ ERROR:
     }
     return ret;
 }
+
+OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort)
+{
+    FunctionIn();
+    if (nPort == 0)
+    {
+        ComponentImpl *pFeederComponent = pSfOMXComponent->hSFComponentFeeder;
+        OMX_U32 inputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ);
+        LOG(SF_LOG_PERF, "Flush %d buffers on inputPort\r\n", inputQueueCount);
+        if (inputQueueCount > 0)
+        {
+            PortContainerExternal *input = NULL;
+            while ((input = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pFeederComponent->srcPort)) != NULL)
+            {
+                if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
+                {
+                    pSfOMXComponent->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
+                }
+                else if (strstr(pSfOMXComponent->componentName, "sf.enc") != NULL)
+                {
+                    pSfOMXComponent->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
+                }
+            }
+        }
+    }
+    else if (nPort == 1)
+    {
+        ComponentImpl *pRendererComponent = pSfOMXComponent->hSFComponentRender;
+        OMX_U32 OutputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ);
+        LOG(SF_LOG_PERF, "Flush %d buffers on outputPort\r\n", OutputQueueCount);
+        if (OutputQueueCount > 0)
+        {
+            PortContainerExternal *output = NULL;
+            while ((output = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pRendererComponent->sinkPort)) != NULL)
+            {
+                output->nFlags = 0x1;
+                output->nFilledLen = 0;
+                if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
+                {
+                    pSfOMXComponent->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
+                }
+                else if (strstr(pSfOMXComponent->componentName, "sf.enc") != NULL)
+                {
+                    pSfOMXComponent->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
+                }
+            }
+        }
+    }
+    FunctionOut();
+}
