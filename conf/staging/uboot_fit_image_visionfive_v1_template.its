@@ -1,0 +1,55 @@
+/dts-v1/;
+
+/ {
+	description = "U-boot FIT image for StarFive VisionFive";
+	#address-cells = <2>;
+
+	images {
+		vmlinux {
+			description = "vmlinux";
+			data = /incbin/(@@CONFIG_FIT_VMLINUX_PATH@@);
+			type = "kernel";
+			arch = "riscv";
+			os = "linux";
+			load = <0x0 0x80200000>;
+			entry = <0x0 0x80200000>;
+			compression = "none";
+		};
+
+		ramdisk {
+			description = "initramfs";
+			data = /incbin/(@@CONFIG_FIT_INITRAMFS_PATH@@);
+			type = "ramdisk";
+			arch = "riscv";
+			os = "linux";
+			load = <0x0 0x86100000>;
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+
+		fdt {
+			data = /incbin/(@@CONFIG_FIT_DTB_PATH@@);
+			type = "flat_dt";
+			arch = "riscv";
+			load = <0x0 0x86000000>;
+			compression = "none";
+			hash-1 {
+				algo = "sha256";
+			};
+		};
+	};
+
+	configurations {
+		default = "config-1";
+
+		config-1 {
+			description = "StarFive VisionFive with OpenSBI";
+			kernel = "vmlinux";
+			fdt = "fdt";
+			loadables = "ramdisk";
+		};
+	};
+};
+

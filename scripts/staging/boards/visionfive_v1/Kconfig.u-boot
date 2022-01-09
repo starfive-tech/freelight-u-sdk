@@ -1,0 +1,42 @@
+menu "U-boot build configuration"
+
+choice UBOOT_GIT_REPO
+	bool "Build choice"
+
+config UBOOT_GIT_REPO_R
+	bool "Build from Remote REPO"
+
+config UBOOT_GIT_REPO_L
+	bool "Build from local branch or commit"
+
+endchoice
+
+if UBOOT_GIT_REPO_R
+
+config UBOOT_GIT_REMOTE
+	string "U-Boot Remote REPO name"
+	default "origin"
+
+config UBOOT_GIT_RBRANCH
+	string "The branch we will use in U-Boot Remote REPO"
+	default "JH7100_upstream"
+
+endif
+
+if UBOOT_GIT_REPO_L
+
+config UBOOT_GIT_LBRANCH
+	string "The branch/commit we will use in local REPO"
+	default "JH7100_upstream"
+
+endif
+
+config UBOOT_BUILD_IN_TMPFS
+	bool "Build U-Boot in tmpfs(in RAM)"
+	default n
+
+config UBOOT_BUILD_TARGET
+	string "The target board we will build for"
+	default "starfive_jh7100_visionfive_smode"
+
+endmenu

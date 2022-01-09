@@ -1,0 +1,16 @@
+menu "Development boards selection"
+
+choice BOARD_SELECTION
+	bool "Development boards selection"
+	default VISIONFIVE_V1
+
+config VISIONFIVE_V1
+	bool "StarFive VisionFive V1 (StarFive JH7100)"
+
+endchoice
+
+config CONFIG_FILE
+	string "config file name for target board"
+	default "visionfive_v1" if VISIONFIVE_V1
+
+endmenu

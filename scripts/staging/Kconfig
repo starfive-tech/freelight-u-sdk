@@ -1,0 +1,7 @@
+mainmenu "freelight-u-sdk main configuration"
+
+source "scripts/staging/env/Kconfig"
+
+source "scripts/staging/components/Kconfig"
+
+source "scripts/staging/boards/Kconfig"

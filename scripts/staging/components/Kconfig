@@ -1,0 +1,15 @@
+menu "Software components' REPO configuration"
+
+config UBOOT_REPO_PATH
+	string "external U-Boot REPO"
+	default "src/firmware/u-boot"
+
+config LINUX_REPO_PATH
+	string "external Linux kernel REPO"
+	default "src/kernel/linux"
+
+config OPENSBI_REPO_PATH
+	string "external OpenSBI REPO"
+	default "src/firmware/opensbi"
+
+endmenu

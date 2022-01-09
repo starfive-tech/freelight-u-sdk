@@ -1,0 +1,15 @@
+menu "FIT Image build configuration"
+
+config FIT_VMLINUX_PATH
+	string "Pre-build vmlinux Bin path"
+	default "../../../output/kernle/linux_visionfive_v1/boot/vmlinuz"
+
+config FIT_INITRAMFS_PATH
+	string "Pre-build initramfs path"
+	default "../../../output/dirstro/minimal/initramfs.cpio.gz"
+
+config FIT_DTB_PATH
+	string "Pre-build device tree blob(DTB) path"
+	default "../../../output/kernle/linux_visionfive_v1/boot/dtb/starfive/jh7100-starfive-visionfive-v1.dtb"
+
+endmenu
