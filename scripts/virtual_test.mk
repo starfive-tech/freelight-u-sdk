@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 .PHONY: sim
 sim: $(spike) $(bbl_payload)

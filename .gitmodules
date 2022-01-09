@@ -1,15 +1,15 @@
 [submodule "buildroot"]
 	path = src/distros/buildroot
 	url = git@github.com:starfive-tech/sft-riscv-buildroot.git
-	branch = starlight_multimedia
+	branch = starlight_multimedia_new_sdk
 [submodule "u-boot"]
 	path = src/firmware/u-boot
 	url = git@github.com:starfive-tech/u-boot.git
-	branch = JH7100_Multimedia_V0.1.0
+	branch = JH7100_upstream
 [submodule "linux"]
 	path = src/kernel/linux
 	url = git@github.com:starfive-tech/linux.git
-	branch = beaglev-5.13.y_multimedia
+	branch = visionfive-5.15.y-devel
 [submodule "opensbi"]
 	path = src/firmware/opensbi
 	url = git@github.com:starfive-tech/opensbi.git

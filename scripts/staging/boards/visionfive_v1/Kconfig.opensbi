@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "OpenSBI build configuration"
+
+choice OPENSBI_GIT_REPO
+	bool "Build choice"
+
+config OPENSBI_GIT_REPO_R
+	bool "Build from Remote REPO"
+
+config OPENSBI_GIT_REPO_L
+	bool "Build from local branch or commit"
+
+endchoice
+
+if OPENSBI_GIT_REPO_R
+
+config OPENSBI_GIT_REMOTE
+	string "OpenSBI Remote REPO name"
+	default "origin"
+
+config OPENSBI_GIT_RBRANCH
+	string "The branch we will use in OpenSBI Remote REPO"
+	default "master"
+
+endif
+
+if OPENSBI_GIT_REPO_L
+
+config OPENSBI_GIT_LBRANCH
+	string "The branch/commit we will use in local REPO"
+	default "master"
+
+endif
+
+
+choice OPENSBI_PLATFORM
+	bool "platform choice"
+	default OPENSBI_PLATFORM_GENERIC
+
+config OPENSBI_PLATFORM_GENERIC
+	bool "Build generic platform"
+
+config OPENSBI_PLATFORM_SOC
+	bool "Build platform/vendor/<board|soc>"
+
+endchoice
+
+config OPENSBI_BUILD_IN_TMPFS
+	bool "Build OpenSBI in tmpfs(in RAM)"
+	default n
+
+config OPENSBI_BUILD_PLATFORM
+	string "Specifies the platform which will be built"
+	default "starfive/jh7100" if OPENSBI_PLATFORM_SOC
+	default "generic" if OPENSBI_PLATFORM_GENERIC
+
+config OPENSBI_BUILD_ARGS
+	string "Specifies the build arguments"
+	default "BUILD_INFO=y"
+
+config OPENSBI_PREBUILD_UBOOT_BIN
+	string "Pre-build U-boot Bin path"
+	default "../../../output/firmware/u-boot_visionfive_v1/u-boot.bin"
+
+config OPENSBI_PREBUILD_DTB
+	string "Pre-build dtb path"
+	default "../../../output/firmware/u-boot_visionfive_v1/u-boot.dtb"
+
+endmenu

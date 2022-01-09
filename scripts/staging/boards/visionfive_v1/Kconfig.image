@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "SD/flash Image build configuration"
+
+config VISIONFIVE_V1_UENV_PATH
+	string "Pre-build uEnv.txt file path"
+	default "../../prebuild/image_visionfive_v1/uEnv.txt"
+
+config VISIONFIVE_V1_ROOTFS_IMAGE_PATH
+	string "Pre-build rootfs image(ext) path"
+	default "../../prebuild/image_visionfive_v1/test.ext4"
+
+config VISIONFIVE_V1_BOOT_START
+	int "boot partition(vfat) start sector( 512 B/sector ) number."
+	default 4096
+
+config VISIONFIVE_V1_BOOT_SECTORS
+	int "boot partition(vfat) size(in sectors)."
+	default 466943
+
+config VISIONFIVE_V1_BOOTLOADER_START
+	int "bootloader partition(raw) start sector( 512 B/sector ) number."
+	default 471040
+
+config VISIONFIVE_V1_BOOTLOADER_SECTORS
+	int "bootloader partition(raw) size(in sectors)."
+	default 2047
+
+config VISIONFIVE_V1_ROOTFS_START
+	int "rootfs partition(ext4) start sector( 512 B/sector ) number."
+	default 475136
+
+config VISIONFIVE_V1_SD_DEV
+	string "SD card device node in /dev/, like sdg."
+	default sdg
+
+endmenu

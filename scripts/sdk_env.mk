@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 ISA ?= rv64imafdc
 ABI ?= lp64d
 TARGET_BOARD := U74

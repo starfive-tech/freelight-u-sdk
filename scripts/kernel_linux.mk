@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 $(linux_wrkdir)/.config: $(linux_defconfig) $(linux_srcdir)
 	mkdir -p $(dir $@)

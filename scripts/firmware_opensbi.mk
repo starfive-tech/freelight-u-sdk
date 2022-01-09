@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 sbi: $(uboot) $(vmlinux)
 	rm -rf $(sbi_wrkdir)
 	mkdir -p $(sbi_wrkdir)

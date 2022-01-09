@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 #$(libfesvr): $(fesvr_srcdir)
 #	rm -rf $(fesvr_wrkdir)
 #	mkdir -p $(fesvr_wrkdir)

@@ -64,8 +64,15 @@ include $(MAKEFILE_DIR)/firmware_u-boot.mk
 
 include $(MAKEFILE_DIR)/kernel_linux.mk
 
--include $(initramfs).d
-
 include $(MAKEFILE_DIR)/virtual_test.mk
 
-#-include $(MAKEFILE_DIR)/debug.mk
+-include $(MAKEFILE_DIR)/debug.mk
+
+######### New SDK #########
+include $(MAKEFILE_DIR)/staging/Makefile
+######### New SDK #########
+
+ifeq ($(CONFIG_BUILD_BUILDROOT_CROSS_COMPILE),y)
+## We need it for buildroot cross compiler
+-include $(initramfs).d
+endif

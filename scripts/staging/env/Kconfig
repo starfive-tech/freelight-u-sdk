@@ -1,0 +1,52 @@
+menu "SDK build environment configuration"
+
+config BUILD_BUILDROOT_CROSS_COMPILE
+	bool "MUST build the corss compiler from buildroot"
+	default n
+
+choice CROSS_COMPILE_SELECTION
+	bool "Cross compiler selection"
+	default WITH_SYSTEM_CROSS_COMPILE
+
+config WITH_SYSTEM_CROSS_COMPILE
+	bool "Corss compiler in the distro"
+
+config WITH_EXTERNAL_CROSS_COMPILE
+	bool "External corss compiler"
+
+endchoice
+
+if WITH_SYSTEM_CROSS_COMPILE
+
+config SYSTEM_CROSS_COMPILE
+	string "The corss compiler prefix"
+	default "riscv64-linux-gnu-"
+
+endif
+
+if WITH_EXTERNAL_CROSS_COMPILE
+
+config EXTERNAL_CROSS_COMPILE_DIR
+	string "The external corss compiler directory/path"
+	default "/usr/bin"
+
+config EXTERNAL_CROSS_COMPILE
+	string "The external corss compiler prefix"
+	default "riscv64-linux-gnu-"
+
+endif
+
+config CUSTOMIZE_BUILD_JOBS
+	bool "customize the number of jobs to run simultaneously in make command"
+	default n
+
+if CUSTOMIZE_BUILD_JOBS
+
+config BUILD_JOBS_N
+	int "Specifies the number of jobs (commands) to run simultaneously."
+	default 4
+
+endif
+
+endmenu
+

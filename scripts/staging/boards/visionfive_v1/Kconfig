@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
+
+mainmenu "StarFive VisionFive V1 build configuration"
+
+config BOARD_SUBFIX
+	string "the subfix of sourcecode and install dir"
+	default "_visionfive_v1"
+
+source "scripts/staging/boards/visionfive_v1/Kconfig.u-boot"
+
+source "scripts/staging/boards/visionfive_v1/Kconfig.opensbi"
+
+source "scripts/staging/boards/visionfive_v1/Kconfig.linux"
+
+source "scripts/staging/boards/visionfive_v1/Kconfig.fit"
+
+source "scripts/staging/boards/visionfive_v1/Kconfig.image"

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # TODO: depracated for now
 #ifneq ($(RISCV),$(buildroot_initramfs_wrkdir)/host)
 #$(target_gcc):
@@ -49,18 +51,26 @@ vpudriver-build:
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave511driver
 	$(MAKE) -C $(buildroot_initramfs_wrkdir) O=$(buildroot_initramfs_wrkdir) wave521driver
 
-.PHONY: initrd
+.PHONY: initrd buildroot_initramfs
 initrd: $(initramfs)
 
-$(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
-	$(linux_srcdir)/usr/gen_initramfs_list.sh -l $(confdir)/initramfs.txt $(buildroot_initramfs_sysroot) > $@
+buildroot_initramfs: $(initramfs).d
 
-$(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
-	cd $(linux_wrkdir) && \
-		$(linux_srcdir)/usr/gen_initramfs_list.sh \
-		-o $@ -u $(shell id -u) -g $(shell id -g) \
+$(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
+	touch $@
+
+initramfs_cpio := $(wrkdir)/initramfs.cpio
+# Generate initramfs.cpio.gz after buildroot and kernel had been compiled
+$(initramfs): $(initramfs).d
+	pushd $(_BOARD_LINUX_SRC_DIR); \
+		$(linux_srcdir)/usr/gen_initramfs.sh \
+		-l $(initramfs).d \
+		-o $(initramfs_cpio) -u $(shell id -u) -g $(shell id -g) \
 		$(confdir)/initramfs.txt \
-		$(buildroot_initramfs_sysroot)
+		$(buildroot_initramfs_sysroot); \
+	(cat $(initramfs_cpio) | gzip -n -9 -f - > $@) || (rm -f $@; echo "Error: Fail to compress $(initramfs_cpio)"; exit 1); \
+	rm -f $(initramfs_cpio); \
+	popd
 
 # use buildroot_initramfs toolchain
 # TODO: fix path and conf/buildroot_rootfs_config
@@ -75,7 +85,7 @@ $(buildroot_rootfs_ext): $(buildroot_srcdir) $(buildroot_rootfs_wrkdir)/.config 
 
 .PHONY: buildroot_rootfs
 buildroot_rootfs: $(buildroot_rootfs_ext)
-	cp $< $@
+#	cp $< $@
 
 $(rootfs): $(buildroot_rootfs_ext)
 	cp $< $@
