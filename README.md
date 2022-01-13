@@ -4,8 +4,7 @@ BeagleV Starlight and the StarFive JH7100 SoC has been merged into upstream buil
 
 
 # Freelight U SDK #
-This builds a complete RISC-V cross-compile toolchain for the StarFiveTech JH7100 SoC. It also builds U-boot and a flattened image tree (FIT)
-image with a OpenSBI binary, linux kernel, device tree, ramdisk and rootdisk for the Starlight development board.
+This builds a complete RISC-V cross-compile toolchain for the StarFiveTech JH7100 SoC. It also builds a OpenSBI binary with U-boot as payload and a FIT(flattened image tree) image with linux kernel, device tree, ramdisk and rootdisk for the `Starlight` Dev board and `Visionfive` Dev board.
 
 ## Prerequisites ##
 
@@ -26,8 +25,7 @@ Install required additional packages.
 
 ## Fetch code Instructions ##
 
-Checkout this repository (the multimedia branch: `JH7100_starlight_multimedia`). Then you will need to checkout all of the linked
-submodules using:
+Checkout this repository (the multimedia branch: `JH7100_starlight_multimedia`). Then you will need to checkout all of the linked submodules using:
 
 	$ git checkout --track origin/JH7100_starlight_multimedia
 	$ git submodule update --init --recursive
@@ -41,7 +39,7 @@ Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
 	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_Multimedia_V0.1.0 && cd ..
 	$ cd linux && git checkout --track origin/beaglev-5.13.y_multimedia && cd ..
-	$ cd opensbi && git checkout --track origin/master && cd ..
+	$ cd opensbi && git checkout master && cd ..
 
 ## Build Instructions ##
 
@@ -49,12 +47,16 @@ After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
 
-Usdk support different hardware boards, you should specify the board you use when build the project. Now usdk support fit image build for three starfive boards:
-starlight, starlight-a1 or visionfive.
+Usdk support different hardware boards, you should specify the board you use when build the project. Now usdk support fit image build for three starfive boards: `starlight`, `starlight-a1` or `visionfive`.
+You can choose building your target board with `HWBOARD` variables.
 
-You can choose your target board with assigning HWBOARD,
-eg. `make HWBOARD=visionfive`, or just **default visionfive**.
-You can also specify the target to build, e.g. `make visionfive`.
+> For starlight-a1 or a2 board:  `make HWBOARD=starlight-a1`, or `make starlight-a1`
+> For starlight-a3 board:  `make HWBOARD=starlight`, or `make starlight`
+> For visionfive board: `make HWBOARD=visionfive`, or `make visionfive`
+
+Note that if not specify the  `HWBOARD` , the default `make`  is for visionfive, just equal to `make HWBOARD=visionfive`
+Also you can specify the system environment variables `HWBOARD` to choose the board, 
+eg. `export HWBOARD=visionfive`,  then run `make` 
 
 By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
 
@@ -71,13 +73,14 @@ freelight-u-sdk/work/image.fit
 freelight-u-sdk/work/opensbi/platform/generic/firmware/fw_payload.bin.out
 ```
 
-The other make command:
+Note the other make command to config uboot, linux, buildroot, busybox configuration:
 
 ```
-make linux-menuconfig      # Kernel menuconfig
 make uboot-menuconfig      # uboot menuconfig
+make linux-menuconfig      # Kernel menuconfig
 make buildroot_initramfs-menuconfig   # initramfs menuconfig
 make buildroot_rootfs-menuconfig      # rootfs menuconfig
+make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
 ```
 
 ## How to Switch Display Framework Between DRM and Framebuffer
@@ -110,7 +113,6 @@ If switch from `Framebuffer` to `DRM` display framework ( `hdmi` display device)
    CONFIG_FB_STARFIVE_HDMI_TDA998X
    CONFIG_FB_STARFIVE_VIDEO
    CONFIG_NVDLA
-   CONFIG_FRAMEBUFFER_CONSOLE
 
 2. Enable the below kernel config:
    CONFIG_DRM_I2C_NXP_TDA998X
@@ -169,6 +171,9 @@ The starlight board natively always support PWMDAC  to audio out, also support W
 > > #include "codecs/sf_ac108.dtsi"
 > > /\*#include "codecs/sf_wm8960.dtsi" \*/
 > > /\* #include "codecs/sf_vad.dtsi" \*/
+>
+> Linux kernel config:
+> run `make linux-menuconfig`, then enable `SND_SOC_AC108` 
 
 ## Build TF Card Booting Image
 
