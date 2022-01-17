@@ -9,7 +9,7 @@
 [submodule "linux"]
 	path = linux
 	url = git@github.com:starfive-tech/linux.git
-	branch = beaglev-5.13.y_multimedia
+	branch = visionfive-5.13.y-devel
 [submodule "opensbi"]
 	path = opensbi
 	url = git@github.com:starfive-tech/opensbi.git
