@@ -30,7 +30,7 @@ Checkout this repository (the multimedia branch: `JH7100_starlight_multimedia`).
 	$ git checkout --track origin/JH7100_starlight_multimedia
 	$ git submodule update --init --recursive
 
-This will take some time and require around 7GB of disk space. Some modules may
+This will take some time and require around 5GB of disk space. Some modules may
 fail because certain dependencies don't have the best git hosting.
 
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
@@ -38,7 +38,7 @@ Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 
 	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
 	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_Multimedia_V0.1.0 && cd ..
-	$ cd linux && git checkout --track origin/beaglev-5.13.y_multimedia && cd ..
+	$ cd linux && git checkout --track origin/visionfive-5.13.y-devel && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
 ## Build Instructions ##
@@ -47,7 +47,7 @@ After update submodules, run `make` or `make -jx` and the complete toolchain and
 fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
 disk space.
 
-Usdk support different hardware boards, you should specify the board you use when build the project. Now usdk support fit image build for three starfive boards: `starlight`, `starlight-a1` or `visionfive`.
+U-SDK support different hardware boards, you should specify the board you use when build the project. Now U-SDK support fit image build for three starfive boards: `starlight`, `starlight-a1` or `visionfive`.
 You can choose building your target board with `HWBOARD` variables.
 
 > For starlight-a1 or a2 board:  `make HWBOARD=starlight-a1`, or `make starlight-a1`
@@ -83,7 +83,56 @@ make buildroot_rootfs-menuconfig      # rootfs menuconfig
 make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
 ```
 
-## How to Switch Display Framework Between DRM and Framebuffer
+## Running on VisionFive/Starlight Board ##
+
+After the `VisionFive` or `Starlight` is properly connected to the serial port cable, network cable and power cord, turn on the power from the wall power socket to power on the `VisionFive` or `Starlight` and you will see the startup information as follows:
+
+	bootloader version: 210209-4547a8d
+	ddr 0x00000000, 1M test
+	ddr 0x00100000, 2M test
+	DDR clk 2133M,Version: 210302-5aea32f
+	2
+Press any key as soon as it starts up to enter the **upgrade menu**. In this menu, you can update uboot
+
+	bootloader version: 210209-4547a8d
+	ddr 0x00000000, 1M test
+	ddr 0x00100000, 2M test
+	DDR clk 2133M,Version: 210302-5aea32f
+	0
+	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	xxxxxxxxxxxFLASH PROGRAMMINGxxxxxxxxxxxxxxx
+	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	
+	0:update boot
+	1:quit
+	select the function:
+
+Type **"0"**  to update the uboot file fw_payload.bin.out via Xmodem mode,
+and then Type **"1"** to exit Flash Programming.
+
+After that, you will see the information `Starlight #` or `VisionFive #` when press the "f" button, select the installation path
+and transfer image.fit through TFTP:
+
+Step1: set enviroment parameter:
+
+	setenv bootfile vmlinuz;setenv fdt_addr_r 0x88000000;setenv fdt_high 0xffffffffffffffff;setenv fdtcontroladdr 0xffffffffffffffff;setenv initrd_high 0xffffffffffffffff;setenv kernel_addr_r 0x84000000;setenv fileaddr a0000000;setenv ipaddr 192.168.xxx.xxx;setenv serverip 192.168.xxx.xxx
+
+Step2: upload image file to ddr:
+
+	tftpboot ${fileaddr} ${serverip}:image.fit;
+
+Step3: load and excute:	
+
+	bootm start ${fileaddr};bootm loados ${fileaddr};booti 0x80200000 0x86100000:${filesize} 0x86000000
+
+When you see the `buildroot login:` message, then congratulations, the launch was successful
+
+	buildroot login:root
+	Password: starfive
+
+
+
+## Appendix I: How to Switch Display Framework Between DRM and Framebuffer
 
 The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
 
@@ -130,9 +179,9 @@ CONFIG_PHY_M31_DPHY_RX0
 CONFIG_DRM_STARFIVE_MIPI_DSI
 ```
 
-## How to Support WM8960 and AC108 Audio Board 
+## Appendix II: How to Support WM8960 and AC108 Audio Board 
 
-The starlight board natively always support PWMDAC  to audio out, also support WM8960 board to audio in and audio out, also support AC108 board to audio in. Note that the WM8960 and AC108 could not be both supported.
+The visionfive and starlight board natively always support PWMDAC to audio-out (3.5mm mini-jack on the board), also support [WM8960 board](https://www.seeedstudio.com/ReSpeaker-2-Mics-Pi-HAT.html) to audio-in and audio-out, also support [AC108 board](https://www.seeedstudio.com/ReSpeaker-4-Mic-Array-for-Raspberry-Pi.html) to audio-in. Note that the WM8960 and AC108 could not be both supported.
 
  If support WM8960 board, need to modify the follow:
 
@@ -175,7 +224,8 @@ The starlight board natively always support PWMDAC  to audio out, also support W
 > Linux kernel config:
 > run `make linux-menuconfig`, then enable `SND_SOC_AC108` 
 
-## Build TF Card Booting Image
+
+## Appendix III: Build TF Card Booting Image
 
 If you don't already use a local tftp server, then you probably want to make the sdcard target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target sdcard; please modify the following file.
 
@@ -216,52 +266,4 @@ make buildroot_rootfs -jx
 make DISK=/dev/sdX format-nvdla-rootfs && sync
 ```
 Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
-
-
-## Running on Starlight Board ##
-
-After the Starlight is properly connected to the serial port cable, network cable and power cord turn on the power from the wall power socket to power on the Starlight and you will see the startup information as follows:
-
-	bootloader version: 210209-4547a8d
-	ddr 0x00000000, 1M test
-	ddr 0x00100000, 2M test
-	DDR clk 2133M,Version: 210302-5aea32f
-	2
-Press any key as soon as it starts up to enter the **upgrade menu**. In this menu, you can update uboot
-
-	bootloader version: 210209-4547a8d
-	ddr 0x00000000, 1M test
-	ddr 0x00100000, 2M test
-	DDR clk 2133M,Version: 210302-5aea32f
-	0
-	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-	xxxxxxxxxxxFLASH PROGRAMMINGxxxxxxxxxxxxxxx
-	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-	
-	0:update boot
-	1:quit
-	select the function:
-
-Type **"0"**  to update the uboot file fw_payload.bin.out via Xmodem mode,
-and then Type **"1"** to exit Flash Programming.
-
-After that, you will see the information `Starlight #` when press the "f" button, select the installation path
-and install image.fit through TFTP:
-
-Step1: set enviroment parameter:
-
-	setenv bootfile vmlinuz;setenv fdt_addr_r 0x88000000;setenv fdt_high 0xffffffffffffffff;setenv fdtcontroladdr 0xffffffffffffffff;setenv initrd_high 0xffffffffffffffff;setenv kernel_addr_r 0x84000000;setenv fileaddr a0000000;setenv ipaddr 192.168.xxx.xxx;setenv serverip 192.168.xxx.xxx
-
-Step2: upload image file to ddr:
-
-	tftpboot ${fileaddr} ${serverip}:image.fit;
-
-Step3: load and excute:	
-
-	bootm start ${fileaddr};bootm loados ${fileaddr};booti 0x80200000 0x86100000:${filesize} 0x86000000
-
-When you see the `buildroot login:` message, then congratulations, the launch was successful
-
-	buildroot login:root
-	Password: starfive
 
