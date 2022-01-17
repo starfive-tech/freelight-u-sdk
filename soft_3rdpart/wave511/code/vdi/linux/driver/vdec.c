@@ -38,7 +38,7 @@
 
 /* definitions to be changed as customer  configuration */
 /* if linux version is 5.15 or later, then can use clock and reset framework */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5,15,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
 #define VPU_SUPPORT_CLOCK_CONTROL
 #endif
 

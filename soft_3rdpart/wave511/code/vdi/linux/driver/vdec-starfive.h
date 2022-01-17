@@ -51,6 +51,7 @@ void starfive_vdec_rst_status(void)
 	int rst_state;
 	for (i = 0; i < VDEC_ID_NUM; i++) {		
 		rst_state = reset_control_status(sf_vdec->rst_vdec_id[i]);
+		printk(">>>>>status_rst%d:%d", i, rst_state);
 	}
 	return;
 }
@@ -61,6 +62,7 @@ void starfive_vdec_clk_status(void)
 	int clk_state;
 	for (i = 0; i < VDEC_ID_NUM; i++) {		
 		clk_state = __clk_is_enabled(sf_vdec->clk_vdec_id[i]);
+		printk(">>>>>status_clk%d:%d", i, clk_state);
 	}
 	return;
 }
@@ -70,10 +72,13 @@ void starfive_vdec_rst_exit(void)
 	int i;
 	int ret;
 	for (i = 0; i < VDEC_ID_NUM; i++) {
-		ret = reset_control_assert(sf_vdec->rst_vdec_id[i]);
-		if (ret) {
-			dev_err(sf_vdec->dev, "reset assert failed\n");
-		}
+		/* Assert the reset of "vdecbrg_main" could crash*/
+		if (i != 1){
+			ret = reset_control_assert(sf_vdec->rst_vdec_id[i]);
+			if (ret) {
+				dev_err(sf_vdec->dev, "reset assert failed\n");
+			}
+		}		
 	}
 	return;
 }
