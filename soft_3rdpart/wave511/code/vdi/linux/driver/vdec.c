@@ -38,7 +38,7 @@
 
 /* definitions to be changed as customer  configuration */
 /* if linux version is 5.15 or later, then can use clock and reset framework */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5,15,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
 #define VPU_SUPPORT_CLOCK_CONTROL
 #endif
 
@@ -1917,7 +1917,7 @@ static void _disable_clk(volatile unsigned long p_reg,int ibit)
 
 static void _reset_assert(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg)
 {
-    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BRG_MAIN);
+    //_set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BRG_MAIN);
     _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_APB);
     _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_AXI);
     _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_VDEC_BCLK);
