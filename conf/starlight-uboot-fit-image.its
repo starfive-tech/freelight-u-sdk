@@ -30,7 +30,7 @@
                 };
 
                 fdt {
-                        data = /incbin/("../work/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb");
+                        data = /incbin/("../work/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight.dtb");
                         type = "flat_dt";
                         arch = "riscv";
                         load = <0x0 0x86000000>;
