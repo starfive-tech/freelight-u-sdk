@@ -29,7 +29,7 @@ buildroot_rootfs_config := $(confdir)/buildroot_rootfs_config
 
 linux_srcdir := $(srcdir)/linux
 linux_wrkdir := $(wrkdir)/linux
-linux_defconfig := $(confdir)/beaglev_defconfig_513
+linux_defconfig := $(confdir)/visionfive_defconfig
 
 vmlinux := $(linux_wrkdir)/vmlinux
 vmlinux_stripped := $(linux_wrkdir)/vmlinux-stripped
@@ -71,20 +71,20 @@ qemu := $(qemu_wrkdir)/prefix/bin/qemu-system-riscv64
 
 uboot_srcdir := $(srcdir)/HiFive_U-Boot
 uboot_wrkdir := $(wrkdir)/HiFive_U-Boot
-uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+dtb_file := $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight.dtb
 uboot := $(uboot_wrkdir)/u-boot.bin
 uboot_config := HiFive-U540_regression_defconfig
 
 ifeq ($(TARGET_BOARD),U74)
 ifeq ($(HWBOARD), starlight)
 	uboot_config := starfive_jh7100_starlight_smode_defconfig
-	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+	dtb_file := $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight.dtb
 else ifeq ($(HWBOARD), starlight-a1)
 	uboot_config := starfive_jh7100_starlight_smode_defconfig
-	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight-a1.dtb
+	dtb_file := $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight-a1.dtb
 else ifeq ($(HWBOARD), visionfive)
 	uboot_config := starfive_jh7100_visionfive_smode_defconfig
-	uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-visionfive.dtb
+	dtb_file := $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dtb
 endif
 else
 	uboot_config := HiFive-U540_nvdla_iofpga_defconfig
@@ -133,17 +133,17 @@ endif
 
 visionfive: HWBOARD := visionfive
 visionfive: uboot_config := starfive_jh7100_visionfive_smode_defconfig
-visionfive: uboot_dtb_file := $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-visionfive.dtb
+visionfive: dtb_file := $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-starfive-visionfive-v1.dtb
 visionfive: nvdla-demo
 
 starlight: HWBOARD := starlight
 starlight: uboot_config = starfive_jh7100_starlight_smode_defconfig
-starlight: uboot_dtb_file = $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dtb
+starlight: dtb_file = $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight.dtb
 starlight: nvdla-demo
 
 starlight-a1: HWBOARD := starlight-a1
 starlight-a1: uboot_config = starfive_jh7100_starlight_smode_defconfig
-starlight-a1: uboot_dtb_file = $(wrkdir)/HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight-a1.dtb
+starlight-a1: dtb_file = $(wrkdir)/linux/arch/riscv/boot/dts/starfive/jh7100-beaglev-starlight-a1.dtb
 starlight-a1: nvdla-demo
 
 $(buildroot_initramfs_wrkdir)/.config: $(buildroot_srcdir)
@@ -262,15 +262,19 @@ vpudriver-build-rootfs:
 .PHONY: initrd
 initrd: $(initramfs)
 
+initramfs_cpio := $(wrkdir)/initramfs.cpio
+
 $(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
-	$(linux_srcdir)/usr/gen_initramfs_list.sh -l $(confdir)/initramfs.txt $(buildroot_initramfs_sysroot) > $@
+	$(linux_srcdir)/usr/gen_initramfs.sh -l $@ $(confdir)/initramfs.txt $(buildroot_initramfs_sysroot)
 
 $(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
 	cd $(linux_wrkdir) && \
-		$(linux_srcdir)/usr/gen_initramfs_list.sh \
-		-o $@ -u $(shell id -u) -g $(shell id -g) \
+		$(linux_srcdir)/usr/gen_initramfs.sh \
+		-o $(initramfs_cpio) -u $(shell id -u) -g $(shell id -g) \
 		$(confdir)/initramfs.txt \
 		$(buildroot_initramfs_sysroot)
+	@(cat $(initramfs_cpio) | gzip -n -9 -f - > $@) || (rm -f $@; echo "Error: Fail to compress $(initramfs_cpio)"; exit 1)
+	@rm -f $(initramfs_cpio)
 
 $(vmlinux_stripped): $(vmlinux)
 	PATH=$(RVPATH) $(target)-strip -o $@ $<
@@ -288,7 +292,7 @@ sbi: $(uboot) $(vmlinux)
 	rm -rf $(sbi_wrkdir)
 	mkdir -p $(sbi_wrkdir)
 	cd $(sbi_wrkdir) && O=$(sbi_wrkdir) CFLAGS="-mabi=$(ABI) -march=$(ISA)" ${MAKE} -C $(sbi_srcdir) CROSS_COMPILE=$(CROSS_COMPILE) \
-		PLATFORM=generic FW_PAYLOAD_PATH=$(uboot) FW_FDT_PATH=$(uboot_dtb_file)
+		PLATFORM=generic FW_PAYLOAD_PATH=$(uboot) FW_FDT_PATH=$(dtb_file)
 
 $(fit): sbi $(vmlinux_bin) $(uboot) $(its_file) $(initramfs)
 	$(uboot_wrkdir)/tools/mkimage -f $(its_file) -A riscv -O linux -T flat_dt $@
