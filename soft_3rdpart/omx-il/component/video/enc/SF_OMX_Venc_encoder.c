@@ -852,7 +852,16 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     CNMComponentConfig *pCNMComponentConfig = (CNMComponentConfig*)pSfOMXComponent->config;
     config->encOpenParam.picWidth = pSfOMXComponent->portDefinition[0].format.video.nFrameWidth;
     config->encOpenParam.picHeight = pSfOMXComponent->portDefinition[0].format.video.nFrameHeight;
-    config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate;
+
+    /* If xFramerate value from user is stored in Q16 format, should convert into integer */
+    if(pSfOMXComponent->portDefinition[0].format.video.xFramerate > (1 << 16))
+    {
+        config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate >> 16;
+    }
+    else
+    {
+        config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate;
+    }
 
     if(pSfOMXComponent->portDefinition[1].format.video.nBitrate)
     {
