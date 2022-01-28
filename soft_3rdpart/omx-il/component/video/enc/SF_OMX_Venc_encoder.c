@@ -852,8 +852,27 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     CNMComponentConfig *pCNMComponentConfig = (CNMComponentConfig*)pSfOMXComponent->config;
     config->encOpenParam.picWidth = pSfOMXComponent->portDefinition[0].format.video.nFrameWidth;
     config->encOpenParam.picHeight = pSfOMXComponent->portDefinition[0].format.video.nFrameHeight;
-    config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate;
-    config->encOpenParam.bitRate = pSfOMXComponent->portDefinition[1].format.video.nBitrate;
+
+    /* If xFramerate value from user is stored in Q16 format, should convert into integer */
+    if(pSfOMXComponent->portDefinition[0].format.video.xFramerate > (1 << 16))
+    {
+        config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate >> 16;
+    }
+    else
+    {
+        config->encOpenParam.frameRateInfo = pSfOMXComponent->portDefinition[0].format.video.xFramerate;
+    }
+
+    if(pSfOMXComponent->portDefinition[1].format.video.nBitrate)
+    {
+        config->encOpenParam.rcEnable = 1;
+        config->encOpenParam.bitRate = pSfOMXComponent->portDefinition[1].format.video.nBitrate;
+    }
+    else if(config->encOpenParam.rcEnable == 1)
+    {
+        pSfOMXComponent->portDefinition[1].format.video.nBitrate = config->encOpenParam.bitRate;
+    }
+
     if (pSfOMXComponent->bitFormat == STD_AVC)
     {
         config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfOMXComponent->AVCComponent[1].nPFrames;
