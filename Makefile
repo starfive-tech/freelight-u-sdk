@@ -29,7 +29,7 @@ buildroot_rootfs_config := $(confdir)/buildroot_rootfs_config
 
 linux_srcdir := $(srcdir)/linux
 linux_wrkdir := $(wrkdir)/linux
-linux_defconfig := $(confdir)/beaglev_defconfig_513
+linux_defconfig := $(confdir)/visionfive_defconfig
 
 vmlinux := $(linux_wrkdir)/vmlinux
 vmlinux_stripped := $(linux_wrkdir)/vmlinux-stripped
@@ -262,15 +262,19 @@ vpudriver-build-rootfs:
 .PHONY: initrd
 initrd: $(initramfs)
 
+initramfs_cpio := $(wrkdir)/initramfs.cpio
+
 $(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
-	$(linux_srcdir)/usr/gen_initramfs_list.sh -l $(confdir)/initramfs.txt $(buildroot_initramfs_sysroot) > $@
+	touch $@
 
 $(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
 	cd $(linux_wrkdir) && \
-		$(linux_srcdir)/usr/gen_initramfs_list.sh \
-		-o $@ -u $(shell id -u) -g $(shell id -g) \
+		$(linux_srcdir)/usr/gen_initramfs.sh \
+		-o $(initramfs_cpio) -u $(shell id -u) -g $(shell id -g) \
 		$(confdir)/initramfs.txt \
 		$(buildroot_initramfs_sysroot)
+	@(cat $(initramfs_cpio) | gzip -n -9 -f - > $@) || (rm -f $@; echo "Error: Fail to compress $(initramfs_cpio)"; exit 1)
+	@rm -f $(initramfs_cpio)
 
 $(vmlinux_stripped): $(vmlinux)
 	PATH=$(RVPATH) $(target)-strip -o $@ $<
