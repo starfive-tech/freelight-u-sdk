@@ -270,6 +270,7 @@ $(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
 $(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
 	cd $(linux_wrkdir) && \
 		$(linux_srcdir)/usr/gen_initramfs.sh \
+		-l $(initramfs).d \
 		-o $(initramfs_cpio) -u $(shell id -u) -g $(shell id -g) \
 		$(confdir)/initramfs.txt \
 		$(buildroot_initramfs_sysroot)
