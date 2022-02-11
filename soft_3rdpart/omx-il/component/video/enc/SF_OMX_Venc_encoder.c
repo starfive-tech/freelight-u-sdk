@@ -879,9 +879,9 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     {
         config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfOMXComponent->HEVCComponent[1].nKeyFrameInterval;
     }
-    LOG(SF_LOG_INFO, "Get width = %d, height = %d frameRateInfo = %d intraPeriod = %d \r\n",
+    LOG(SF_LOG_INFO, "Get width = %d, height = %d frameRateInfo = %d intraPeriod = %d bitrate = %d\r\n",
         config->encOpenParam.picWidth, config->encOpenParam.picHeight, config->encOpenParam.frameRateInfo,
-        config->encOpenParam.EncStdParam.waveParam.intraPeriod);
+        config->encOpenParam.EncStdParam.waveParam.intraPeriod, config->encOpenParam.bitRate);
 
     pSfOMXComponent->hSFComponentExecoder = pSfOMXComponent->functions->ComponentCreate("wave_encoder", config);
     pSfOMXComponent->hSFComponentFeeder = pSfOMXComponent->functions->ComponentCreate("yuvfeeder", config);
