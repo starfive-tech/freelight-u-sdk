@@ -597,18 +597,39 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             pTestDecConfig->scaleDownWidth = VPU_CEIL(width, 2);
             pTestDecConfig->scaleDownHeight = VPU_CEIL(height, 2);
             LOG(SF_LOG_INFO, "Set scale = %d, %d\r\n", pTestDecConfig->scaleDownWidth , pTestDecConfig->scaleDownHeight);
+            /*
+                if cbcrInterleave is FALSE and nv21 is FALSE, the default dec format is I420
+                if cbcrInterleave is TRUE and nv21 is FALSE, then the dec format is NV12
+                if cbcrInterleave is TRUE and nv21 is TRUE, then the dec format is NV21
+            */
+            LOG(SF_LOG_INFO, "Set format = %d\r\n", pOutputPort->format.video.eColorFormat);
             switch (pOutputPort->format.video.eColorFormat)
             {
-            case OMX_COLOR_FormatYUV420Planar:
-            case OMX_COLOR_FormatYUV420SemiPlanar:
+            case OMX_COLOR_FormatYUV420Planar: //I420
+                pTestDecConfig->cbcrInterleave = FALSE;
+                pTestDecConfig->nv21 = FALSE;
+                if (width && height)
+                    pOutputPort->nBufferSize = (width * height * 3) / 2;
+                break;
+            case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
+                pTestDecConfig->cbcrInterleave = TRUE;
+                pTestDecConfig->nv21 = FALSE;
+                if (width && height)
+                    pOutputPort->nBufferSize = (width * height * 3) / 2;
+                break;
+            case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
+                pTestDecConfig->cbcrInterleave = TRUE;
+                pTestDecConfig->nv21 = TRUE;
                 if (width && height)
                     pOutputPort->nBufferSize = (width * height * 3) / 2;
                 break;
             default:
-                if (width && height)
-                    pOutputPort->nBufferSize = width * height * 2;
+                LOG(SF_LOG_ERR, "Error to set parameter: %d, only nv12 nv21 i420 supported\r\n",
+                    pOutputPort->format.video.eColorFormat);
+                return OMX_ErrorBadParameter;
                 break;
             }
+
         }
     }
     break;
@@ -792,6 +813,7 @@ static OMX_ERRORTYPE InitDecoder(SF_OMX_COMPONENT *pSfOMXComponent)
         LOG(SF_LOG_ERR, "SetupDecoderOpenParam error\n");
         return OMX_ErrorBadParameter;
     }
+    LOG(SF_LOG_INFO, "cbcrInterleave = %d, nv21 = %d\r\n", testConfig->cbcrInterleave, testConfig->nv21);
     pSfOMXComponent->hSFComponentExecoder = pSfOMXComponent->functions->ComponentCreate("wave_decoder", config);
     pSfOMXComponent->hSFComponentFeeder = pSfOMXComponent->functions->ComponentCreate("feeder", config);
     pSfOMXComponent->hSFComponentRender = pSfOMXComponent->functions->ComponentCreate("renderer", config);
