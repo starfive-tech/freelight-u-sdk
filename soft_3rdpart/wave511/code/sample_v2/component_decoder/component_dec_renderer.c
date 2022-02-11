@@ -477,6 +477,7 @@ static BOOL ExecuteRenderer(ComponentImpl* com, PortContainer* in, PortContainer
             ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
         }
         com->terminate = TRUE;
+        ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_DECODED_ALL, NULL);
     }
     else if (indexFrameDisplay >= 0) {
         VpuRect      rcDisplay  = {0,};

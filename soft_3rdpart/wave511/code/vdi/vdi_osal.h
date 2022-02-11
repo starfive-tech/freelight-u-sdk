@@ -37,6 +37,7 @@ enum
     WARN,
     TRACE,
     INFO,
+    DEBUG,
     MAX_LOG_LEVEL
 };
 
