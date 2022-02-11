@@ -258,16 +258,8 @@ extern BOOL BSFeederBuffer_GetEos(void* feeder);
         if (input != NULL) {
             ComponentPortGetData(&com->srcPort);
             ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
-            if ((input->nFlags & 0x1) == 0x1)
-            {
-                while ((input = (PortContainerExternal*)ComponentPortGetData(&com->srcPort)) != NULL)
-                {
-                    input->nFlags = 0x1;
-                    input->nFilledLen = 0;
-                    VLOG(INFO, "Flush input port\r\n");
-                    ComponentNotifyListeners(com, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
-                }
-            }
+            // do not use input var under next line because this data already be droped.
+            (void)input;
         }
 #endif
     }
@@ -303,16 +295,8 @@ extern BOOL BSFeederBuffer_GetEos(void* feeder);
             if (eos == TRUE) {
                 ComponentPortGetData(&com->srcPort);
                 ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
-                if ((input->nFlags & 0x1) == 0x1)
-                {
-                    while ((input = (PortContainerExternal*)ComponentPortGetData(&com->srcPort)) != NULL)
-                    {
-                        input->nFlags = 0x1;
-                        input->nFilledLen = 0;
-                        VLOG(INFO, "Flush input port\r\n");
-                        ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
-                    }
-                }
+                // do not use input var under next line because this data already be droped.
+                (void)input;
             }
 #endif
         }
