@@ -495,7 +495,6 @@ static BOOL ExecuteRenderer(ComponentImpl* com, PortContainer* in, PortContainer
             if (FALSE ==GetYUVFromFrameBuffer2(NULL, &dmaBuffer, output->nFilledLen, ctx->handle, &srcData->decInfo.dispFrame, rcDisplay, &width, &height, &bpp, &sizeYuv)) {
                 VLOG(ERR, "GetYUVFromFrameBuffer2 FAIL!\n");
             }
-            output->nFilledLen = sizeYuv;
             total_count = Queue_Get_Cnt(com->sinkPort.inputQ);
             while (output->pBuffer != dmaBuffer)
             {
@@ -516,6 +515,7 @@ static BOOL ExecuteRenderer(ComponentImpl* com, PortContainer* in, PortContainer
                 VLOG(ERR, "GetYUVFromFrameBuffer2 FAIL!\n");
             }
         }
+        output->nFilledLen = sizeYuv;
         output->nFlags = srcData->decInfo.indexFrameDisplay;
         ComponentPortGetData(&com->sinkPort);
         ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
