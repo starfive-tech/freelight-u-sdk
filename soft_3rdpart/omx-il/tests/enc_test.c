@@ -41,6 +41,7 @@ typedef struct EncodeTestContext
     char sInputFormat[64];
     char sOutputFormat[64];
     OMX_U32 nFrameBufferSize;
+    OMX_U32 nBitrate;
     OMX_BUFFERHEADERTYPE *pInputBufferArray[64];
     OMX_BUFFERHEADERTYPE *pOutputBufferArray[64];
     int msgid;
@@ -97,7 +98,7 @@ static OMX_ERRORTYPE event_handler(
 static void help()
 {
     printf("./video_enc_test -i <input file> -o <output file> -w <width> -h <height>"
-           "-c <yuv/nv12> -s <h264/h265>\r\n");
+           "-c <yuv/nv12> -s <h264/h265> -b <bitrate>\r\n");
 }
 
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
@@ -201,11 +202,12 @@ int main(int argc, char *argv)
         {"input", required_argument, NULL, 'f'},
         {"color format", required_argument, NULL, 'c'},
         {"stream format", required_argument, NULL, 's'},
+        {"bit rate", optional_argument, NULL, 'b'},
         {"width", required_argument, NULL, 'w'},
         {"height", required_argument, NULL, 'h'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:f:s:w:h:";
+    OMX_S8 *shortOpt = "i:o:f:s:w:h:b:";
     OMX_U32 c;
     OMX_S32 l;
 
@@ -252,6 +254,10 @@ int main(int argc, char *argv)
         case 'h':
             printf("height: %s\r\n", optarg);
             height = atoi(optarg);
+            break;
+        case 'b':
+            printf("bit rate: %s\r\n", optarg);
+            encodeTestContext->nBitrate = atoi(optarg);
             break;
         default:
             help();
@@ -316,6 +322,7 @@ int main(int argc, char *argv)
     OMX_GetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
     pOutputPortDefinition.format.video.nFrameWidth = width;
     pOutputPortDefinition.format.video.nFrameHeight = height;
+    pOutputPortDefinition.format.video.nBitrate = encodeTestContext->nBitrate;
     //TODO: input format
     OMX_SetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
 
