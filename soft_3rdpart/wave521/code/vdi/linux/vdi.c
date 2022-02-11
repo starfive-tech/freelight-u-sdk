@@ -1139,7 +1139,10 @@ void vdi_free_dma_memory(unsigned long core_idx, vpu_buffer_t *vb, int memTypes,
     vmem_lock(vdi);
     for (i=0; i<MAX_VPU_BUFFER_POOL; i++)
     {
-        if (vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr)
+        /* add more constraints for finding the correct buffer */
+        if ((vdi->vpu_buffer_pool[i].vdb.phys_addr == vb->phys_addr)
+			&& (vdi->vpu_buffer_pool[i].vdb.size == vb->size)
+			&& (vdi->vpu_buffer_pool[i].vdb.virt_addr == vb->virt_addr))
         {
             vdi->vpu_buffer_pool[i].inuse = 0;
             vdi->vpu_buffer_pool_count--;
