@@ -414,13 +414,13 @@ flash.gpt: $(flash_image)
 
 ifeq ($(TARGET_BOARD),U74)
 VFAT_START=4096
-VFAT_END=270335
-VFAT_SIZE=266239
-UBOOT_START=270336
-UBOOT_END=272383
+VFAT_END=570335
+VFAT_SIZE=566239
+UBOOT_START=570336
+UBOOT_END=572383
 UBOOT_SIZE=2047
-UENV_START=272384
-UENV_END=274431
+UENV_START=572384
+UENV_END=574431
 $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 	@if [ `du --apparent-size --block-size=512 $(uboot) | cut -f 1` -ge $(UBOOT_SIZE) ]; then \
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
