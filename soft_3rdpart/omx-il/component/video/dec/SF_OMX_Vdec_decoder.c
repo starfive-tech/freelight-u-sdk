@@ -79,7 +79,6 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     case COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE:
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
-        sem_post(pSfOMXComponent->inputSemaphore);
         break;
     case COMPONENT_EVENT_DEC_FILL_BUFFER_DONE:
     {
@@ -183,7 +182,7 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
 
-    if (hComponent == NULL)
+    if (hComponent == NULL || pBuffer == NULL)
     {
         ret = OMX_ErrorBadParameter;
         goto EXIT;
@@ -195,7 +194,6 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
 
     ComponentImpl *pFeederComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
 
-    sem_wait(pSfOMXComponent->inputSemaphore);
     PortContainerExternal *pPortContainerExternal = malloc(sizeof(PortContainerExternal));
     if (pPortContainerExternal == NULL)
     {
@@ -215,6 +213,7 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     }
     LOG(SF_LOG_PERF, "input queue count=%d/%d\r\n", pSfOMXComponent->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ),
                                                     pSfOMXComponent->portDefinition[0].nBufferCountActual);
+    LOG(SF_LOG_INFO, "input buffer address = %p, size = %d, flag = %x\r\n", pBuffer->pBuffer, pBuffer->nFilledLen, pBuffer->nFlags);
     free(pPortContainerExternal);
 
     pFeederComponent->pause = OMX_FALSE;
@@ -235,7 +234,7 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
 
-    if (hComponent == NULL)
+    if (hComponent == NULL || pBuffer == NULL)
     {
         ret = OMX_ErrorBadParameter;
         goto EXIT;
@@ -808,7 +807,7 @@ static OMX_ERRORTYPE InitDecoder(SF_OMX_COMPONENT *pSfOMXComponent)
     {
         pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentExecoder,
                                                               COMPONENT_EVENT_DEC_ALL, pSfOMXComponent->functions->DecoderListener, (void *)pSfOMXComponent->lsnCtx);
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentExecoder,
+        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentRender,
                                                               COMPONENT_EVENT_DEC_DECODED_ALL, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
         pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentFeeder,
                                                               COMPONENT_EVENT_DEC_ALL, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
@@ -1033,7 +1032,11 @@ static OMX_ERRORTYPE SF_OMX_FreeBuffer(
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
 
     FunctionIn();
-    ClearOMXBuffer(pSfOMXComponent, pBufferHdr);
+    if (ClearOMXBuffer(pSfOMXComponent, pBufferHdr) != OMX_ErrorNone)
+    {
+        LOG(SF_LOG_ERR, "Could not found pBufferHdr = %p\r\n", pBufferHdr);
+        return OMX_ErrorBadParameter;
+    }
     LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
     if (nPortIndex == 1) {
         LOG(SF_LOG_INFO, "free %p on output buffer\r\n", pBufferHdr->pBuffer);
@@ -1101,14 +1104,7 @@ static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *hComponent)
     // hComponent->pOMXComponent->GetExtensionIndex = &SF_OMX_GetExtensionIndex;
     // hComponent->pOMXComponent->ComponentRoleEnum = &SF_OMX_ComponentRoleEnum;
     // hComponent->pOMXComponent->ComponentDeInit = &SF_OMX_ComponentDeInit;
-    hComponent->inputSemaphore = (sem_t *)malloc(sizeof(sem_t));
-    if (hComponent->inputSemaphore == NULL)
-    {
-        LOG(SF_LOG_ERR, "malloc fail\r\n");
-        ret = OMX_ErrorInsufficientResources;
-        goto EXIT;
-    }
-    sem_init(hComponent->inputSemaphore, 0, 5);
+
 EXIT:
     FunctionOut();
 

@@ -5,7 +5,6 @@
 #ifndef OMX__CORE
 #define OMX__CORE
 
-#include <semaphore.h>
 #include "OMX_Types.h"
 #include "OMX_Core.h"
 #include "OMX_Component.h"
@@ -128,7 +127,6 @@ typedef struct _SF_OMX_COMPONENT
     OMX_VIDEO_PARAM_AVCTYPE AVCComponent[2];
     OMX_VIDEO_PARAM_HEVCTYPE HEVCComponent[2];
     OMX_BUFFERHEADERTYPE *pBufferArray[64];
-    sem_t *inputSemaphore;
     CodStd bitFormat;
     OMX_STRING fwPath;
     OMX_STRING componentRule;

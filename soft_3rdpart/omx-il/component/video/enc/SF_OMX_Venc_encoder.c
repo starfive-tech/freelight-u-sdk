@@ -77,7 +77,6 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
         LOG(SF_LOG_PERF, "OMX empty one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
         pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
-        sem_post(pSfOMXComponent->inputSemaphore);
         break;
     case COMPONENT_EVENT_ENC_FILL_BUFFER_DONE:
     {
@@ -139,7 +138,7 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
 
-    if (hComponent == NULL)
+    if (hComponent == NULL || pBuffer == NULL)
     {
         ret = OMX_ErrorBadParameter;
         goto EXIT;
@@ -151,7 +150,6 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
 
     ComponentImpl *pFeederComponent = pSfOMXComponent->hSFComponentFeeder;
 
-    sem_wait(pSfOMXComponent->inputSemaphore);
     PortContainerExternal *pPortContainerExternal = malloc(sizeof(PortContainerExternal));
     if (pPortContainerExternal == NULL)
     {
@@ -187,7 +185,7 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
 
-    if (hComponent == NULL)
+    if (hComponent == NULL || pBuffer == NULL)
     {
         ret = OMX_ErrorBadParameter;
         goto EXIT;
@@ -1187,17 +1185,7 @@ static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *hComponent)
     hComponent->pOMXComponent->SetConfig = &SF_OMX_SetConfig;
     hComponent->pOMXComponent->SendCommand = &SF_OMX_SendCommand;
     hComponent->pOMXComponent->GetState = &SF_OMX_GetState;
-    // hComponent->pOMXComponent->GetExtensionIndex = &SF_OMX_GetExtensionIndex;
-    // hComponent->pOMXComponent->ComponentRoleEnum = &SF_OMX_ComponentRoleEnum;
-    // hComponent->pOMXComponent->ComponentDeInit = &SF_OMX_ComponentDeInit;
-    hComponent->inputSemaphore = (sem_t *)malloc(sizeof(sem_t));
-    if (hComponent->inputSemaphore == NULL)
-    {
-        LOG(SF_LOG_ERR, "malloc fail\r\n");
-        ret = OMX_ErrorInsufficientResources;
-        goto EXIT;
-    }
-    sem_init(hComponent->inputSemaphore, 0, 1);
+
 EXIT:
     FunctionOut();
 

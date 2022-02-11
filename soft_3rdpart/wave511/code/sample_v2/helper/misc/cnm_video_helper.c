@@ -2123,7 +2123,7 @@ void LoadSrcYUV2(
     //base address
     baseY  = fbSrc->bufY;
 
-    VLOG(INFO, "%s %d baseY = %x stride = %d srcHeightY = %d endian = %d\r\n",
+    VLOG(DEBUG, "%s %d baseY = %x stride = %d srcHeightY = %d endian = %d\r\n",
         __FUNCTION__, __LINE__, baseY, stride, srcHeightY, endian);
     
 
@@ -2140,7 +2140,7 @@ void LoadSrcYUV2(
 
     pix_addr = fbSrc->bufY + 0xffffffff00000000;
     rowBufferY = pY + (pix_addr - baseY);
-    VLOG(INFO, "%s %d ret = %d, pix_addr = %lx,  pY = %p, rowBufferY = %p pSrc = %p pSrc2 = %p\n",
+    VLOG(DEBUG, "%s %d ret = %d, pix_addr = %lx,  pY = %p, rowBufferY = %p pSrc = %p pSrc2 = %p\n",
         __FUNCTION__, __LINE__, ret, pix_addr, pY, rowBufferY, pSrc, pSrc2);
     if (pSrc) {
         osal_memcpy(pSrc, rowBufferY, srcHeightY*srcWidthY*3/2);
