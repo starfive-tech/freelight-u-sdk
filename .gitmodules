@@ -5,7 +5,7 @@
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
 	url = git@github.com:starfive-tech/u-boot.git
-	branch = JH7100_Multimedia_V0.1.0
+	branch = JH7100_upstream_devel
 [submodule "linux"]
 	path = linux
 	url = git@github.com:starfive-tech/linux.git
