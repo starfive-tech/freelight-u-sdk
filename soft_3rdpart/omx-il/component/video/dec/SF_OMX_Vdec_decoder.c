@@ -345,8 +345,8 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     FunctionIn();
     if (nSizeBytes == 0)
     {
-        LOG(SF_LOG_ERR, "nSizeBytes = %d\r\n", nSizeBytes);
-        return OMX_ErrorBadParameter;
+        LOG(SF_LOG_WARN, "nSizeBytes = %d, use default buffer size\r\n", nSizeBytes);
+        nSizeBytes = DEFAULT_VIDEO_OUTPUT_BUFFER_SIZE;
     }
     OMX_BUFFERHEADERTYPE *temp_bufferHeader = (OMX_BUFFERHEADERTYPE *)malloc(sizeof(OMX_BUFFERHEADERTYPE));
     if (temp_bufferHeader == NULL)
