@@ -414,13 +414,13 @@ flash.gpt: $(flash_image)
 
 ifeq ($(TARGET_BOARD),U74)
 VFAT_START=4096
-VFAT_END=270335
-VFAT_SIZE=266239
-UBOOT_START=270336
-UBOOT_END=272383
+VFAT_END=471039
+VFAT_SIZE=466943
+UBOOT_START=471040
+UBOOT_END=473087
 UBOOT_SIZE=2047
-UENV_START=272384
-UENV_END=274431
+UENV_START=473088
+UENV_END=475135
 $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 	@if [ `du --apparent-size --block-size=512 $(uboot) | cut -f 1` -ge $(UBOOT_SIZE) ]; then \
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
@@ -533,7 +533,7 @@ format-demo-image: format-boot-loader
 
 # default size: 16GB
 DISK_IMAGE_SIZE ?= 16
-ROOT_BEGIN=272384
+ROOT_BEGIN=475136
 ROOT_CLUSTER_NUM=$(shell echo $$(($(DISK_IMAGE_SIZE)*1024*1024*1024/512)))
 ROOT_END=$(shell echo $$(($(ROOT_BEGIN)+$(ROOT_CLUSTER_NUM))))
 
