@@ -25,9 +25,9 @@ Install required additional packages.
 
 ## Fetch code Instructions ##
 
-Checkout this repository (the multimedia branch: `JH7100_starlight_multimedia`). Then you will need to checkout all of the linked submodules using:
+Checkout this repository  (branch `JH7100_VisionFive`). Then you will need to checkout all of the linked submodules using:
 
-	$ git checkout --track origin/JH7100_starlight_multimedia
+	$ git checkout --track origin/JH7100_VisionFive
 	$ git submodule update --init --recursive
 
 This will take some time and require around 5GB of disk space. Some modules may
@@ -37,8 +37,8 @@ Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
 	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
-	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_Multimedia_V0.1.0 && cd ..
-	$ cd linux && git checkout --track origin/visionfive-5.13.y-devel && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_upstream_devel && cd ..
+	$ cd linux && git checkout --track origin/visionfive-5.15.y-devel && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
 ## Build Instructions ##
@@ -53,6 +53,8 @@ You can choose building your target board with `HWBOARD` variables.
 > For starlight-a1 or a2 board:  `make HWBOARD=starlight-a1`, or `make starlight-a1`
 > For starlight-a3 board:  `make HWBOARD=starlight`, or `make starlight`
 > For visionfive board: `make HWBOARD=visionfive`, or `make visionfive`
+>
+> Or run `export HWBOARD=visionfive` first, then use it as before
 
 Note that if not specify the  `HWBOARD` , the default `make`  is for visionfive, just equal to `make HWBOARD=visionfive`
 Also you can specify the system environment variables `HWBOARD` to choose the board, 
@@ -76,11 +78,11 @@ freelight-u-sdk/work/opensbi/platform/generic/firmware/fw_payload.bin.out
 Note the other make command to config uboot, linux, buildroot, busybox configuration:
 
 ```
-make uboot-menuconfig      # uboot menuconfig
-make linux-menuconfig      # Kernel menuconfig
-make buildroot_initramfs-menuconfig   # initramfs menuconfig
-make buildroot_rootfs-menuconfig      # rootfs menuconfig
-make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
+$ make uboot-menuconfig      # uboot menuconfig
+$ make linux-menuconfig      # Kernel menuconfig
+$ make buildroot_initramfs-menuconfig   # initramfs menuconfig
+$ make buildroot_rootfs-menuconfig      # rootfs menuconfig
+$ make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
 ```
 
 ## Running on VisionFive/Starlight Board ##
@@ -136,7 +138,7 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 
 The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
 
-If switch from `DRM`to `Framebuffer` display framework (`hdmi` display device), 
+#### If switch from `DRM`to `Framebuffer` display framework with`hdmi` display device:
 
 ```
 1. Disable the DRM feature:
@@ -154,7 +156,7 @@ Note: Recommend Disable the below for usdk:
    CONFIG_FRAMEBUFFER_CONSOLE
 ```
 
-If switch from `Framebuffer` to `DRM` display framework ( `hdmi` display device):
+#### If switch from `Framebuffer` to `DRM` display framework with `hdmi` display device:
 
 ```
 1. Disable the below kernel config
@@ -165,13 +167,13 @@ If switch from `Framebuffer` to `DRM` display framework ( `hdmi` display device)
 
 2. Enable the below kernel config:
    CONFIG_DRM_I2C_NXP_TDA998X
-   CONFIG_DRM_I2C_NXP_TDA9950
    CONFIG_DRM_STARFIVE
+   CONFIG_PHY_M31_DPHY_RX0
 
-Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
+3. Recommend to disable CONFIG_FRAMEBUFFER_CONSOLE, and CONFIG_DRM_STARFIVE_MIPI_DSI
 ```
 
-If switch  from `Framebuffer`  to `DRM` display framework (`mipi dsi` display device):
+#### If switch  from `Framebuffer`  to `DRM` display framework with`mipi dsi` display device:
 
 ```
 based on the above drm to hdmi pipeline config, enable the below kernel config:
@@ -227,20 +229,11 @@ The visionfive and starlight board natively always support PWMDAC to audio-out (
 
 ## Appendix III: Build TF Card Booting Image
 
-If you don't already use a local tftp server, then you probably want to make the sdcard target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target sdcard; please modify the following file.
+If you don't already use a local tftp server, then you probably want to make the TF card target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target TF card; please modify the following file. The `GPT` Partition Table for the TF card is recommended. 
 
-conf/beaglev_defconfig_513:
-
-```
-change
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
-to
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
-```
-
-HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig(using starlight or starlight-a1 board)
+`HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig`  (for `starlight` or `starlight-a1` board)
 or
-HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig (using visionfive board):
+`HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig`  (for `visionfive` board):
 
 ```
 change
@@ -257,13 +250,11 @@ CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2.
 Please insert the TF card and run command `df -h` to check the device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the following instructions to build TF card image:
 
 ```
-make buildroot_rootfs -jx
-make -jx
-make vpubuild_rootfs
-make clean
-make -jx
-make buildroot_rootfs -jx
-make DISK=/dev/sdX format-nvdla-rootfs && sync
+$ make buildroot_rootfs -jx
+$ make vpudriver-build-rootfs
+$ rm -rf work/buildroot_rootfs/images/rootfs.ext*
+$ make buildroot_rootfs -jx
+$ make DISK=/dev/sdX format-nvdla-rootfs && sync
 ```
 Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
 
