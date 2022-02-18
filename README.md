@@ -51,12 +51,14 @@ U-SDK support different hardware boards, you should specify the board you use wh
 You can choose building your target board with `HWBOARD` variables.
 
 > For starlight-a1 or a2 board:  `make HWBOARD=starlight-a1`, or `make starlight-a1`
+>
 > For starlight-a3 board:  `make HWBOARD=starlight`, or `make starlight`
+>
 > For visionfive board: `make HWBOARD=visionfive`, or `make visionfive`
 
-Note that if not specify the  `HWBOARD` , the default `make`  is for visionfive, just equal to `make HWBOARD=visionfive`
+Note that if not specify the  `HWBOARD` , the default `make`  is for `visionfive`, just equal to `make HWBOARD=visionfive`
 Also you can specify the system environment variables `HWBOARD` to choose the board, 
-eg. `export HWBOARD=visionfive`,  then run `make` 
+eg. `export HWBOARD=visionfive`,  then run `make` as the below.
 
 By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
 
@@ -80,7 +82,8 @@ make uboot-menuconfig      # uboot menuconfig
 make linux-menuconfig      # Kernel menuconfig
 make buildroot_initramfs-menuconfig   # initramfs menuconfig
 make buildroot_rootfs-menuconfig      # rootfs menuconfig
-make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
+make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initramfs busybox menuconfig 
+make -C ./work/buildroot_rootfs/ O=./work/buildroot_rootfs busybox-menuconfig  # for rootfs busybox menuconfig
 ```
 
 ## Running on VisionFive/Starlight Board ##
@@ -136,48 +139,71 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 
 The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
 
-If switch from `DRM`to `Framebuffer` display framework (`hdmi` display device), 
+#### If switch to `Framebuffer` display framework with`hdmi` display device:
 
-```
-1. Disable the DRM feature:
-   CONFIG_DRM_I2C_NXP_TDA998X
-   CONFIG_DRM_I2C_NXP_TDA9950
-   CONFIG_DRM_STARFIVE
+> 1. Disable the DRM feature:
+>    CONFIG_DRM_I2C_NXP_TDA998X
+>    CONFIG_DRM_I2C_NXP_TDA9950
+>    CONFIG_DRM_STARFIVE
+>
+> 2. Enable the Framebuffer feature:
+>    CONFIG_FB_STARFIVE
+>    CONFIG_FB_STARFIVE_HDMI_TDA998X
+>    CONFIG_FB_STARFIVE_VIDEO
+>
+> Note: Recommend disable the below:
+>    CONFIG_NVDLA
+>    CONFIG_FRAMEBUFFER_CONSOLE
 
-2. Enable the Framebuffer feature:
-   CONFIG_FB_STARFIVE
-   CONFIG_FB_STARFIVE_HDMI_TDA998X
-   CONFIG_FB_STARFIVE_VIDEO
+#### If switch to `DRM` display framework with `hdmi` display device:
 
-Note: Recommend Disable the below for usdk:
-   CONFIG_NVDLA
-   CONFIG_FRAMEBUFFER_CONSOLE
-```
+> 1. Disable the below kernel config
+>    CONFIG_FB_STARFIVE
+>    CONFIG_FB_STARFIVE_HDMI_TDA998X
+>    CONFIG_FB_STARFIVE_VIDEO
+>    CONFIG_NVDLA
+>
+> 2. Enable the below kernel config:
+>    CONFIG_DRM_I2C_NXP_TDA998X
+>    CONFIG_DRM_I2C_NXP_TDA9950
+>    CONFIG_DRM_STARFIVE
+>
+> Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
 
-If switch from `Framebuffer` to `DRM` display framework ( `hdmi` display device):
+#### If switch to `DRM` display framework with`mipi dsi` display device:
 
-```
-1. Disable the below kernel config
-   CONFIG_FB_STARFIVE
-   CONFIG_FB_STARFIVE_HDMI_TDA998X
-   CONFIG_FB_STARFIVE_VIDEO
-   CONFIG_NVDLA
+> Based on the above "DRM with hdmi display device" config, enable the below kernel config:
+> CONFIG_PHY_M31_DPHY_RX0
+> CONFIG_DRM_STARFIVE_MIPI_DSI
+>
+> And also need to change HiFive_U-Boot/arch/riscv/dts/jh7100.dtsi.
+> The default support HDMI, need to modify the "encoder-type" and "remote-endpoint" node to support mipi dsi, see the below:
+>
+> ```
+> display-encoder {
+> 	compatible = "starfive,display-encoder";
+> 	encoder-type = <6>;	//2-TMDS, 3-LVDS, 6-DSI, 8-DPI
+> 	status = "okay";
+> 
+> 	ports {
+> 		port@0 {
+> 			hdmi_out:endpoint {
+> 				remote-endpoint = <&dsi_out_port>; // tda998x_0_input - HDMI, 
+> 												   // dsi_out_port -MIPI DSI
+> 			};
+> 		};
+> 
+> 		port@1 {
+> 			hdmi_input0:endpoint {
+> 				remote-endpoint = <&crtc_0_out>;
+> 			};
+> 		};
+> 
+> 	};
+> };
+> ```
 
-2. Enable the below kernel config:
-   CONFIG_DRM_I2C_NXP_TDA998X
-   CONFIG_DRM_I2C_NXP_TDA9950
-   CONFIG_DRM_STARFIVE
 
-Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
-```
-
-If switch  from `Framebuffer`  to `DRM` display framework (`mipi dsi` display device):
-
-```
-based on the above drm to hdmi pipeline config, enable the below kernel config:
-CONFIG_PHY_M31_DPHY_RX0
-CONFIG_DRM_STARFIVE_MIPI_DSI
-```
 
 ## Appendix II: How to Support WM8960 and AC108 Audio Board 
 
@@ -227,20 +253,11 @@ The visionfive and starlight board natively always support PWMDAC to audio-out (
 
 ## Appendix III: Build TF Card Booting Image
 
-If you don't already use a local tftp server, then you probably want to make the sdcard target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target sdcard; please modify the following file.
+If you don't already use a local tftp server, then you probably want to make the TF card target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target TF card; please modify the following file. The `GPT` Partition Table for the TF card is recommended. 
 
-conf/beaglev_defconfig_513:
-
-```
-change
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
-to
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1 root=/dev/mmcblk0p3"
-```
-
-HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig(using starlight or starlight-a1 board)
+`HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig` (for `starlight` or `starlight-a1` board)
 or
-HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig (using visionfive board):
+`HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig`  (for `visionfive` board):
 
 ```
 change
@@ -257,13 +274,12 @@ CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2.
 Please insert the TF card and run command `df -h` to check the device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the following instructions to build TF card image:
 
 ```
-make buildroot_rootfs -jx
-make -jx
-make vpubuild_rootfs
-make clean
-make -jx
-make buildroot_rootfs -jx
-make DISK=/dev/sdX format-nvdla-rootfs && sync
+$ make HWBOARD=xxx -jx
+$ make HWBOARD=xxx buildroot_rootfs -jx
+$ make HWBOARD=xxx vpudriver-build-rootfs
+$ rm -rf work/buildroot_rootfs/images/rootfs.ext*
+$ make HWBOARD=xxx buildroot_rootfs -jx
+$ make HWBOARD=xxx DISK=/dev/sdX format-nvdla-rootfs && sync
 ```
 Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
 
