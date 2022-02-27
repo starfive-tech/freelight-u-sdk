@@ -11,7 +11,7 @@ _board_fit_its:
 			     $(FIT_ITS_FILE))
 
 #_board_uboot_build_tools
-_board_fit: _board_fit_its
+_board_fit: initrd _board_fit_its
 	$(_BOARD_UBOOT_SRC_DIR)/tools/mkimage \
 		-f $(FIT_ITS_FILE) \
 		-A riscv \
