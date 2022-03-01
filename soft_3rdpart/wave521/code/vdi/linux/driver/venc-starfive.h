@@ -18,17 +18,6 @@
 
 struct starfive_venc_data {
 	struct device *dev;
-	struct clk *clk_venc_axi;
-	struct clk *clk_vencbrg_main;
-	struct clk *clk_venc_bclk;
-	struct clk *clk_venc_cclk;
-	struct clk *clk_venc_apb;
-
-    struct reset_control *rst_vencbrg_main;
-    struct reset_control *rst_venc_axi;
-    struct reset_control *rst_venc_bclk;
-    struct reset_control *rst_venc_cclk;
-    struct reset_control *rst_venc_apb;
 
 	struct clk *clk_venc_id[VENC_ID_NUM];
 	struct reset_control *rst_venc_id[VENC_ID_NUM];
@@ -37,8 +26,8 @@ struct starfive_venc_data {
 static struct starfive_venc_data *sf_venc = NULL;
 
 const char venc_data_id[VENC_ID_NUM][15] = {
-	"venc_axi",
 	"vencbrg_main",
+	"venc_axi",
 	"venc_bclk",
 	"venc_cclk",
 	"venc_apb",
@@ -70,13 +59,12 @@ void starfive_venc_rst_exit(void)
 {
 	int i;
 	int ret;
-	for (i = 0; i < VENC_ID_NUM; i++) {
+	for (i = 1; i < VENC_ID_NUM; i++) {
 		/* Assert the reset of "vencbrg_main" could crash*/
-		if (i != 1 ) {
-			ret = reset_control_assert(sf_venc->rst_venc_id[i]);
-			if (ret) {
-				dev_err(sf_venc->dev, "reset assert failed\n");
-			}
+		ret = reset_control_assert(sf_venc->rst_venc_id[i]);
+		if (ret) {
+			dev_err(sf_venc->dev, "VENC reset assert failed:\n");
+			dev_err(sf_venc->dev, venc_data_id[i]);
 		}					
 	}
 	return;
@@ -85,7 +73,7 @@ void starfive_venc_rst_exit(void)
 void starfive_venc_clk_exit(void)
 {
 	int i;
-	for (i = 0; i < VENC_ID_NUM; i++) {
+	for (i = 1; i < VENC_ID_NUM; i++) {
 		clk_disable_unprepare(sf_venc->clk_venc_id[i]);
 	}
 	
@@ -99,6 +87,7 @@ static int starfive_venc_clk_init(void)
 	for (i = 0; i < VENC_ID_NUM; i++) {
 		ret = clk_prepare_enable(sf_venc->clk_venc_id[i]);
 		if (ret) {
+			dev_err(sf_venc->dev, "VENC enable clock failed:\n");
 			dev_err(sf_venc->dev, venc_data_id[i]);
 			goto init_clk_failed;
 		}
@@ -107,7 +96,7 @@ static int starfive_venc_clk_init(void)
 	return 0;
 
 init_clk_failed:
-	for(; i > 0 ; i--) {
+	for(; i > 1 ; i--) {
 		clk_disable_unprepare(sf_venc->clk_venc_id[i-1]);
 	}
 
@@ -121,6 +110,7 @@ static int starfive_venc_get_clk(void)
 	for ( i = 0; i < VENC_ID_NUM ; i++) {
 		sf_venc->clk_venc_id[i] = devm_clk_get(sf_venc->dev, venc_data_id[i]);
 		if (IS_ERR(sf_venc->clk_venc_id[i])) {
+			dev_err(sf_venc->dev, "VENC get clock failed:\n");
 			dev_err(sf_venc->dev,  venc_data_id[i]);
 			ret = PTR_ERR(sf_venc->clk_venc_id[i]);
 			goto get_clk_failed;
@@ -144,6 +134,7 @@ static int starfive_venc_reset_init(void)
 	for (i = 0; i < VENC_ID_NUM ; i++) {
 		ret = reset_control_deassert(sf_venc->rst_venc_id[i]);
     	if (ret) {
+			dev_err(sf_venc->dev, "VENC deassert reset failed:\n");
 			dev_err(sf_venc->dev, venc_data_id[i]);
        	 	goto init_reset_failed;
 		}
@@ -152,7 +143,7 @@ static int starfive_venc_reset_init(void)
 	return 0;
 
 init_reset_failed:
-	for (; i > 0 ; i--) {
+	for (; i > 1 ; i--) {
 		reset_control_assert(sf_venc->rst_venc_id[i-1]);
 	}
 
@@ -167,6 +158,7 @@ static int starfive_venc_get_resets(void)
 	for (i = 0; i < VENC_ID_NUM ; i++) {
 		sf_venc->rst_venc_id[i] = devm_reset_control_get_exclusive(sf_venc->dev, venc_data_id[i]);
 		if (IS_ERR(sf_venc->rst_venc_id[i])) {
+			dev_err(sf_venc->dev, "VENC get reset failed:\n");
 			dev_err(sf_venc->dev,  venc_data_id[i]);
 			ret = PTR_ERR(sf_venc->rst_venc_id[i]);
 			goto get_resets_failed;
@@ -295,7 +287,7 @@ int starfive_venc_clk_rst_init(struct platform_device *pdev)
 	}
 	starfive_venc_rst_status();
 
-	printk("starfive venc clock & reset init success.");
+	dev_info(sf_venc->dev, "success to init VENC clock & reset.");
     return 0;
 
 init_failed:

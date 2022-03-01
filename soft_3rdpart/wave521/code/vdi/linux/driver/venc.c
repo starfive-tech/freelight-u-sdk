@@ -1288,11 +1288,11 @@ static int vpu_probe(struct platform_device *pdev)
 		dev_info(vpu_dev,"device init.\n");
 	}
 
-#ifdef VPU_SUPPORT_CLOCK_CONTROL
+#ifdef VPU_SUPPORT_CLOCK_CONTROL	
 	vpu_dev->of_node = of_find_node_by_name(NULL, "vpu_enc");
 	if (!(vpu_dev->of_node))
 		printk("The node of vpu_enc is not found in device tree.\n");
-	
+
 	err = of_address_to_resource(vpu_dev->of_node, 0, &venc_resource[0]);
 	if (err) {
 		printk(KERN_ERR "could not find venc register address\n");
@@ -1301,7 +1301,7 @@ static int vpu_probe(struct platform_device *pdev)
 
 	venc_resource[1].start = irq_of_parse_and_map(vpu_dev->of_node, 0);
 	venc_resource[1].end = venc_resource[1].start;
-
+	
 	err = platform_device_add_resources(pdev, venc_resource, 2);
 	if (err) {
 		printk(KERN_ERR "could not add venc resource\n");
@@ -1923,7 +1923,7 @@ static int _clk_control(int enable)
     else
     {
         _disable_clk(p_breg+clk_venc_axi_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vencbrg_mainclk_ctrl_REG_OFFSET,31);
+        // _disable_clk(p_breg+clk_vencbrg_mainclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_venc_bclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_venc_cclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_venc_apb_ctrl_REG_OFFSET,31);
