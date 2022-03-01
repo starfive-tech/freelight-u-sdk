@@ -1969,7 +1969,7 @@ static int _clk_control(int enable)
     else
     {
         _disable_clk(p_breg+clk_vdec_axi_ctrl_REG_OFFSET,31);
-        _disable_clk(p_breg+clk_vdecbrg_mainclk_ctrl_REG_OFFSET,31);
+        // _disable_clk(p_breg+clk_vdecbrg_mainclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_vdec_bclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_vdec_cclk_ctrl_REG_OFFSET,31);
         _disable_clk(p_breg+clk_vdec_apb_ctrl_REG_OFFSET,31);
