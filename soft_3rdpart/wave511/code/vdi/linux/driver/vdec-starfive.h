@@ -18,17 +18,6 @@
 
 struct starfive_vdec_data {
 	struct device *dev;
-	struct clk *clk_vdec_axi;
-	struct clk *clk_vdecbrg_main;
-	struct clk *clk_vdec_bclk;
-	struct clk *clk_vdec_cclk;
-	struct clk *clk_vdec_apb;
-
-    struct reset_control *rst_vdecbrg_main;
-    struct reset_control *rst_vdec_axi;
-    struct reset_control *rst_vdec_bclk;
-    struct reset_control *rst_vdec_cclk;
-    struct reset_control *rst_vdec_apb;
 
 	struct clk *clk_vdec_id[VDEC_ID_NUM];
 	struct reset_control *rst_vdec_id[VDEC_ID_NUM];
@@ -38,8 +27,8 @@ struct starfive_vdec_data {
 static struct starfive_vdec_data *sf_vdec = NULL;
 
 const char vdec_data_id[VDEC_ID_NUM][15] = {
-	"vdec_axi",
 	"vdecbrg_main",
+	"vdec_axi",
 	"vdec_bclk",
 	"vdec_cclk",
 	"vdec_apb",
@@ -71,13 +60,12 @@ void starfive_vdec_rst_exit(void)
 {
 	int i;
 	int ret;
-	for (i = 0; i < VDEC_ID_NUM; i++) {
+	for (i = 1; i < VDEC_ID_NUM; i++) {
 		/* Assert the reset of "vdecbrg_main" could crash*/
-		if (i != 1){
-			ret = reset_control_assert(sf_vdec->rst_vdec_id[i]);
-			if (ret) {
-				dev_err(sf_vdec->dev, "reset assert failed\n");
-			}
+		ret = reset_control_assert(sf_vdec->rst_vdec_id[i]);
+		if (ret) {
+			dev_err(sf_vdec->dev, "VDEC reset assert failed:\n");
+			dev_err(sf_vdec->dev, vdec_data_id[i]);
 		}		
 	}
 	return;
@@ -86,7 +74,7 @@ void starfive_vdec_rst_exit(void)
 void starfive_vdec_clk_exit(void)
 {
 	int i;
-	for (i = 0; i < VDEC_ID_NUM; i++) {
+	for (i = 1; i < VDEC_ID_NUM; i++) {
 		clk_disable_unprepare(sf_vdec->clk_vdec_id[i]);
 	}
 	return;
@@ -99,6 +87,7 @@ static int starfive_vdec_clk_init(void)
 	for (i = 0; i < VDEC_ID_NUM; i++) {
 		ret = clk_prepare_enable(sf_vdec->clk_vdec_id[i]);
 		if (ret) {
+			dev_err(sf_vdec->dev, "VDEC enable clock failed:\n");
 			dev_err(sf_vdec->dev, vdec_data_id[i]);
 			goto init_clk_failed;
 		}
@@ -107,7 +96,7 @@ static int starfive_vdec_clk_init(void)
 	return 0;
 
 init_clk_failed:
-	for(; i > 0 ; i--) {
+	for(; i > 1 ; i--) {
 		clk_disable_unprepare(sf_vdec->clk_vdec_id[i-1]);
 	}
 
@@ -122,6 +111,7 @@ static int starfive_vdec_get_clk(void)
 	for ( i = 0; i < VDEC_ID_NUM ; i++) {
 		sf_vdec->clk_vdec_id[i] = devm_clk_get(sf_vdec->dev, vdec_data_id[i]);
 		if (IS_ERR(sf_vdec->clk_vdec_id[i])) {
+			dev_err(sf_vdec->dev, "VDEC get clock failed:\n");
 			dev_err(sf_vdec->dev,  vdec_data_id[i]);
 			ret = PTR_ERR(sf_vdec->clk_vdec_id[i]);
 			goto get_clk_failed;
@@ -145,6 +135,7 @@ static int starfive_vdec_reset_init(void)
 	for (i = 0; i < VDEC_ID_NUM ; i++) {
 		ret = reset_control_deassert(sf_vdec->rst_vdec_id[i]);
     	if (ret) {
+			dev_err(sf_vdec->dev, "VDEC deassert reset failed:\n");
 			dev_err(sf_vdec->dev, vdec_data_id[i]);
        	 	goto init_reset_failed;
 		}
@@ -153,7 +144,7 @@ static int starfive_vdec_reset_init(void)
 	return 0;
 
 init_reset_failed:
-	for (; i > 0 ; i--) {
+	for (; i > 1 ; i--) {
 		reset_control_assert(sf_vdec->rst_vdec_id[i-1]);
 	}
 
@@ -167,6 +158,7 @@ static int starfive_vdec_get_resets(void)
 	for (i = 0; i < VDEC_ID_NUM ; i++) {
 		sf_vdec->rst_vdec_id[i] = devm_reset_control_get_exclusive(sf_vdec->dev, vdec_data_id[i]);
 		if (IS_ERR(sf_vdec->rst_vdec_id[i])) {
+			dev_err(sf_vdec->dev, "VDEC get reset failed:\n");
 			dev_err(sf_vdec->dev,  vdec_data_id[i]);
 			ret = PTR_ERR(sf_vdec->rst_vdec_id[i]);
 			goto get_resets_failed;
@@ -294,7 +286,7 @@ int starfive_vdec_clk_rst_init(struct platform_device *pdev)
 		goto init_failed;
 	}
 
-	printk("starfive vdec clock & reset init success.");
+	dev_info(sf_vdec->dev, "success to init VDEC clock & reset.");
     return 0;
 
 init_failed:
