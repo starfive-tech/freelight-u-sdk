@@ -1,17 +1,17 @@
 [submodule "buildroot"]
 	path = buildroot
-	url = git@github.com:starfive-tech/sft-riscv-buildroot.git
-	branch = starlight_multimedia
+	url = http://192.168.110.45/jh7100/buildroot.git
+	branch = JH7100_VisionFive_devel
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
-	url = git@github.com:starfive-tech/u-boot.git
-	branch = JH7100_upstream_devel
+	url = http://192.168.110.45/jh7100/u-boot.git
+	branch = JH7100_VisionFive_devel
 [submodule "linux"]
 	path = linux
-	url = git@github.com:starfive-tech/linux.git
+	url = http://192.168.110.45/jh7100/linux.git
 	branch = visionfive-5.15.y-devel
 [submodule "opensbi"]
 	path = opensbi
-	url = git@github.com:starfive-tech/opensbi.git
+	url = http://192.168.110.45/jh7100/opensbi.git
 	branch = master
 

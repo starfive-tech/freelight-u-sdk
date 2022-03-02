@@ -25,9 +25,9 @@ Install required additional packages.
 
 ## Fetch code Instructions ##
 
-Checkout this repository  (branch `JH7100_VisionFive`). Then you will need to checkout all of the linked submodules using:
+Checkout this repository  (branch `JH7100_VisionFive_devel`). Then you will need to checkout all of the linked submodules using:
 
-	$ git checkout --track origin/JH7100_VisionFive
+	$ git checkout --track origin/JH7100_VisionFive_devel
 	$ git submodule update --init --recursive
 
 This will take some time and require around 5GB of disk space. Some modules may
@@ -36,16 +36,15 @@ fail because certain dependencies don't have the best git hosting.
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
-	$ cd buildroot && git checkout --track origin/starlight_multimedia && cd ..
-	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_upstream_devel && cd ..
+	$ cd buildroot && git checkout --track origin/JH7100_VisionFive_devel && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_VisionFive_devel && cd ..
 	$ cd linux && git checkout --track origin/visionfive-5.15.y-devel && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
 ## Build Instructions ##
 
 After update submodules, run `make` or `make -jx` and the complete toolchain and
-fw_payload.bin.out & image.fit will be built. The completed build tree will consume about 18G of
-disk space.
+`fw_payload.bin.out` & `image.fit` will be built. The completed build tree will consume about 18G of disk space.
 
 U-SDK support different hardware boards, you should specify the board you use when build the project. Now U-SDK support fit image build for three starfive boards: `starlight`, `starlight-a1` or `visionfive`.
 You can choose building your target board with `HWBOARD` variables.
@@ -67,7 +66,7 @@ By default, the above generated image does not contain VPU driver module(wave511
 	$ rm -rf work/buildroot_initramfs/images/rootfs.tar
 	$ make -jx
 
-Copy files fw_payload.bin.out and image.fit to tftp installation path to use
+Copy files `fw_payload.bin.out` and `image.fit` to tftp server installation path to use
 
 ```
 Path:
