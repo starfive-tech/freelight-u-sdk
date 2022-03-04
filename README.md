@@ -173,35 +173,8 @@ The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow
 #### If switch to `DRM` display framework with`mipi dsi` display device:
 
 > Based on the above "DRM with hdmi display device" config, enable the below kernel config:
-> CONFIG_PHY_M31_DPHY_RX0
 > CONFIG_DRM_STARFIVE_MIPI_DSI
->
-> And also need to change HiFive_U-Boot/arch/riscv/dts/jh7100.dtsi.
-> The default support HDMI, need to modify the "encoder-type" and "remote-endpoint" node to support mipi dsi, see the below:
->
-> ```
-> display-encoder {
-> 	compatible = "starfive,display-encoder";
-> 	encoder-type = <6>;	//2-TMDS, 3-LVDS, 6-DSI, 8-DPI
-> 	status = "okay";
-> 
-> 	ports {
-> 		port@0 {
-> 			hdmi_out:endpoint {
-> 				remote-endpoint = <&dsi_out_port>; // tda998x_0_input - HDMI, 
-> 												   // dsi_out_port -MIPI DSI
-> 			};
-> 		};
-> 
-> 		port@1 {
-> 			hdmi_input0:endpoint {
-> 				remote-endpoint = <&crtc_0_out>;
-> 			};
-> 		};
-> 
-> 	};
-> };
-> ```
+
 
 ## Appendix II: How to Support WM8960 and AC108 Audio Board 
 
