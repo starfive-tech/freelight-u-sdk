@@ -12,3 +12,4 @@ source "scripts/staging/boards/visionfive_v1/Kconfig.linux"
 
 source "scripts/staging/boards/visionfive_v1/Kconfig.fit"
 
+source "scripts/staging/boards/visionfive_v1/Kconfig.image"
