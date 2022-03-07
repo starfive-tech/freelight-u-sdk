@@ -34,10 +34,14 @@
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/version.h>
-#include <soc/starfive/vic7100.h>
+#include <soc/sifive/sifive_l2_cache.h>
 
 #include "../../../jpuapi/jpuconfig.h"
 #include "jpu.h"
+#include "jpu-starfive.h"
+
+#define starfive_flush_dcache(start, len) \
+	sifive_l2_flush64_range(start, len)
 
 //#define ENABLE_DEBUG_MSG
 #ifdef ENABLE_DEBUG_MSG
@@ -48,7 +52,10 @@
 
 /* definitions to be changed as customer  configuration */
 /* if you want to have clock gating scheme frame by frame */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
 #define JPU_SUPPORT_CLOCK_CONTROL
+#endif
+
 #define JPU_SUPPORT_ISR
 //#define JPU_IRQ_CONTROL
 /* if the platform driver knows the name of this driver */
@@ -59,14 +66,11 @@
 
 //#define JPU_SUPPORT_RESERVED_VIDEO_MEMORY        //if this driver knows the dedicated video memory address
 
-
 #define JPU_PLATFORM_DEVICE_NAME    "cnm_jpu"
-#define JPU_CLK_NAME                "jpege"
 #define JPU_DEV_NAME                "jpu"
 
 #define JPU_REG_BASE_ADDR           0x11900000
 #define JPU_REG_SIZE                0x300
-
 
 #ifdef JPU_SUPPORT_ISR
 #define JPU_IRQ_NUM                 24
@@ -114,17 +118,14 @@ static jpudrv_buffer_t  s_video_memory = {0};
 
 
 static int jpu_hw_reset(void);
-static void jpu_clk_disable(struct clk *clk);
-static int jpu_clk_enable(struct clk *clk);
-static struct clk *jpu_clk_get(struct device *dev);
-static void jpu_clk_put(struct clk *clk);
+static void jpu_clk_disable(void);
+static int jpu_clk_enable(void);
 // end customer definition
 
 static jpudrv_buffer_t s_instance_pool = {0};
 static jpu_drv_context_t s_jpu_drv_context;
 static int s_jpu_major;
 static struct cdev s_jpu_cdev;
-static struct clk *s_jpu_clk;
 static int s_jpu_open_ref_count;
 #ifdef JPU_SUPPORT_ISR
 static int s_jpu_irq = JPU_IRQ_NUM;
@@ -156,6 +157,23 @@ static struct list_head s_inst_list_head = LIST_HEAD_INIT(s_inst_list_head);
 #define ReadJpuRegister(addr)           *(volatile unsigned int *)(s_jpu_register.virt_addr + addr)
 #define WriteJpuRegister(addr, val)     *(volatile unsigned int *)(s_jpu_register.virt_addr + addr) = (unsigned int)val
 #define WriteJpu(addr, val)             *(volatile unsigned int *)(addr) = (unsigned int)val;
+
+#define vic_readl(addr)             readl((void __iomem *)addr)
+#define vic_writel(val,addr)        writel(val,(void __iomem *)addr)
+
+#define rstgen_Software_RESET_BASE_REG_ADDR     0x11840000
+#define rstgen_Software_RESET_assert0_OFFSET    (0x0)
+#define rstgen_Software_RESET_status0_OFFSET    (0x10)
+#define NBIT_RSTN_JPEG_AXI                      18
+#define NBIT_RSTN_JPEG_CCLK                     19
+#define NBIT_RSTN_JPEG_APB                      20
+
+#define clk_BASE_REG_ADDR                       0x11800000
+#define clk_vdecbrg_main_ctrl_REG_OFFSET        (0xb0)
+#define clk_jpeg_axi_ctrl_REG_OFFSET            (0xc0)
+#define clk_jpeg_cclk_ctrl_REG_OFFSET           (0xc4)
+#define clk_jpeg_apb_ctrl_REG_OFFSET            (0xc8)
+#define clk_jpcgc300_main_ctrl_REG_OFFSET       (0xdc)
 
 
 static int jpu_alloc_dma_buffer(jpudrv_buffer_t *jb)
@@ -353,7 +371,7 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                     up(&s_jpu_sem);
                     break;
                 }
-
+                
                 jbp->filp = filp;
                 spin_lock(&s_jpu_lock);
                 list_add(&jbp->list, &s_jbp_head);
@@ -452,17 +470,21 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
         break;
     case JDI_IOCTL_SET_CLOCK_GATE:
         {
+            /*
             u32 clkgate;
 
             if (get_user(clkgate, (u32 __user *) arg))
                 return -EFAULT;
 
-#ifdef JPU_SUPPORT_CLOCK_CONTROL
+//#ifdef JPU_SUPPORT_CLOCK_CONTROL
             if (clkgate)
-                jpu_clk_enable(s_jpu_clk);
+                ret = starfive_jpu_clk_enable(jpu_dev);
+                //jpu_clk_enable();               
             else
-                jpu_clk_disable(s_jpu_clk);
-#endif /* JPU_SUPPORT_CLOCK_CONTROL */
+                ret = starfive_jpu_clk_disable(jpu_dev);
+                //jpu_clk_disable();
+//#endif 
+*/
         }
         break;
     case JDI_IOCTL_GET_INSTANCE_POOL:
@@ -556,7 +578,8 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
         }
         break;
     case JDI_IOCTL_RESET:
-        jpu_hw_reset();
+        //jpu_hw_reset();
+        //starfive_jpu_rst_deassert(jpu_dev);
         break;
 
     case JDI_IOCTL_GET_REGISTER_INFO:
@@ -600,9 +623,9 @@ static ssize_t jpu_read(struct file *filp, char __user *buf, size_t len, loff_t 
 static ssize_t jpu_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
 
-    /* DPRINTK("[VPUDRV] vpu_write len=%d\n", (int)len); */
+    /* DPRINTK("[JPUDRV] jpu_write len=%d\n", (int)len); */
     if (!buf) {
-        printk(KERN_ERR "[VPUDRV] vpu_write buf = NULL error \n");
+        printk(KERN_ERR "[JPUDRV] jpu_write buf = NULL error \n");
         return -EFAULT;
     }
 
@@ -772,22 +795,15 @@ static int jpu_probe(struct platform_device *pdev)
 
         goto ERROR_PROVE_DEVICE;
     }
-
-    if (pdev)
-        s_jpu_clk = jpu_clk_get(&pdev->dev);
-    else
-        s_jpu_clk = jpu_clk_get(NULL);
-
-    if (!s_jpu_clk) {
-        printk(KERN_ERR "[JPUDRV] : not support clock controller.\n");
-    }
-    else {
-        DPRINTK("[JPUDRV] : get clock controller s_jpu_clk=%p\n", s_jpu_clk);
-    }
-
+    
 #ifdef JPU_SUPPORT_CLOCK_CONTROL
+    err = starfive_jpu_clk_rst_init(pdev);
+    if (err){
+        goto ERROR_PROVE_DEVICE; 
+    }
 #else
-    jpu_clk_enable(s_jpu_clk);
+    jpu_clk_enable();
+    jpu_hw_reset();
 #endif
 
 
@@ -884,8 +900,6 @@ static int jpu_remove(struct platform_device *pdev)
     if (s_jpu_register.virt_addr)
         iounmap((void*)s_jpu_register.virt_addr);
 
-    jpu_clk_put(s_jpu_clk);
-
 #endif /* JPU_SUPPORT_PLATFORM_DRIVER_REGISTER */
 
 	return 0;
@@ -894,13 +908,22 @@ static int jpu_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int jpu_suspend(struct platform_device *pdev, pm_message_t state)
 {
-    jpu_clk_disable(s_jpu_clk);
+#ifdef JPU_SUPPORT_CLOCK_CONTROL
+    starfive_jpu_clk_disable(jpu_dev)
+#else
+    jpu_clk_disable();
+#endif
+    
     return 0;
 
 }
 static int jpu_resume(struct platform_device *pdev)
 {
-    jpu_clk_enable(s_jpu_clk);
+#ifdef JPU_SUPPORT_CLOCK_CONTROL
+    starfive_jpu_clk_enable(jpu_dev)
+#else
+    jpu_clk_enable();
+#endif
 
     return 0;
 }
@@ -950,14 +973,16 @@ static int __init jpu_init(void)
 static void __exit jpu_exit(void)
 {
     DPRINTK("[JPUDRV] [+]jpu_exit\n");
+#ifdef JPU_SUPPORT_CLOCK_CONTROL
+    starfive_jpu_clk_disable(jpu_dev);
+    starfive_jpu_rst_assert(jpu_dev);
+#else
+    jpu_clk_disable();
+#endif
 #ifdef JPU_SUPPORT_PLATFORM_DRIVER_REGISTER
     platform_driver_unregister(&jpu_driver);
+
 #else /* JPU_SUPPORT_PLATFORM_DRIVER_REGISTER */
-#ifdef JPU_SUPPORT_CLOCK_CONTROL
-#else
-    jpu_clk_disable(s_jpu_clk);
-#endif /* JPU_SUPPORT_CLOCK_CONTROL */
-    jpu_clk_put(s_jpu_clk);
     if (s_instance_pool.base) {
         vfree((const void *)s_instance_pool.base);
         s_instance_pool.base = 0;
@@ -994,45 +1019,134 @@ static void __exit jpu_exit(void)
 }
 
 MODULE_AUTHOR("A customer using C&M JPU, Inc.");
+MODULE_AUTHOR("Xingyu Wu <xingyu.wu@starfivetech.com>");
 MODULE_DESCRIPTION("JPU linux driver");
 MODULE_LICENSE("GPL");
 
 module_init(jpu_init);
 module_exit(jpu_exit);
 
-static int jpu_hw_reset(void)
+
+static void _set_reset(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg,int ibit)
 {
-    DPRINTK("[JPUDRV] request jpu reset from application. \n");
+    unsigned int read_value;
+	read_value = vic_readl(p_assert_reg);
+    read_value    &= ~(0x1<<ibit);
+    read_value    |= (0x1&0x1)<<ibit;
+	vic_writel(read_value,p_assert_reg);
+
+    do {
+        read_value = (vic_readl(p_status_reg))>>ibit;
+        read_value &= 0x1;
+    } while(read_value!=0x0);
+}
+
+static void _clr_reset(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg,int ibit)
+{
+    unsigned int read_value;
+	read_value = vic_readl(p_assert_reg);
+    read_value    &= ~(0x1<<ibit);
+	read_value	  |= (0x0&0x1)<<ibit;
+	vic_writel(read_value,p_assert_reg);
+
+    do {
+        read_value = (vic_readl(p_status_reg))>>ibit;
+        read_value &= 0x1;
+    } while(read_value!=0x1);
+}
+
+static void _enable_clk(volatile unsigned long p_reg,int ibit)
+{
+    unsigned int read_value;
+	read_value = vic_readl(p_reg);
+    read_value &= ~(0x1<<ibit);
+    read_value |= (0x1&0x1)<<ibit;
+	vic_writel(read_value,p_reg);
+}
+
+static void _disable_clk(volatile unsigned long p_reg,int ibit)
+{
+    unsigned int read_value;
+	read_value = vic_readl(p_reg);
+    read_value &= ~(0x1<<ibit);
+	read_value |= (0x0&0x1)<<ibit;
+	vic_writel(read_value,p_reg);
+}
+
+static void _reset_assert(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg)
+{
+    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_JPEG_APB);
+    _set_reset(p_assert_reg,p_status_reg,NBIT_RSTN_JPEG_CCLK);
+}
+
+static void _reset_clear(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg)
+{
+    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_JPEG_AXI);
+    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_JPEG_CCLK);
+    _clr_reset(p_assert_reg,p_status_reg,NBIT_RSTN_JPEG_APB);
+}
+
+static int _reset(void)
+{
+    volatile unsigned long p_breg = (unsigned long)ioremap(rstgen_Software_RESET_BASE_REG_ADDR,0x20);
+
+    if(!p_breg){
+        return -1;
+    }
+
+    _reset_assert(p_breg+rstgen_Software_RESET_assert0_OFFSET,p_breg+rstgen_Software_RESET_status0_OFFSET);
+
+    mdelay(1);
+
+    _reset_clear(p_breg+rstgen_Software_RESET_assert0_OFFSET,p_breg+rstgen_Software_RESET_status0_OFFSET);
+
+    iounmap((void *)p_breg);
+
     return 0;
 }
 
-
-struct clk *jpu_clk_get(struct device *dev)
+static int _clk_control(int enable)
 {
-    return clk_get(dev, JPU_CLK_NAME);
-}
-void jpu_clk_put(struct clk *clk)
-{
-    if (!(clk == NULL || IS_ERR(clk)))
-        clk_put(clk);
-}
-int jpu_clk_enable(struct clk *clk)
-{
-
-    if (clk) {
-        DPRINTK("[JPUDRV] jpu_clk_enable\n");
-        // You need to implement it
-        return 1;
+    volatile unsigned long p_breg = (unsigned long)ioremap(clk_BASE_REG_ADDR,0x100);
+    if(!p_breg){
+        return -1;
     }
+
+    if(enable){
+        _enable_clk(p_breg+clk_jpeg_axi_ctrl_REG_OFFSET,31);
+        _enable_clk(p_breg+clk_jpcgc300_main_ctrl_REG_OFFSET,31);
+        _enable_clk(p_breg+clk_vdecbrg_main_ctrl_REG_OFFSET,31);
+        _enable_clk(p_breg+clk_jpeg_cclk_ctrl_REG_OFFSET,31);
+        _enable_clk(p_breg+clk_jpeg_apb_ctrl_REG_OFFSET,31);
+    }
+    else
+    {
+        _disable_clk(p_breg+clk_jpeg_axi_ctrl_REG_OFFSET,31);
+        _disable_clk(p_breg+clk_jpeg_cclk_ctrl_REG_OFFSET,31);
+        _disable_clk(p_breg+clk_jpeg_apb_ctrl_REG_OFFSET,31);
+    }
+
+    iounmap((void *)p_breg);
+
     return 0;
 }
 
-void jpu_clk_disable(struct clk *clk)
+int jpu_hw_reset(void)
 {
-    if (!(clk == NULL || IS_ERR(clk))) {
-        DPRINTK("[JPUDRV] jpu_clk_disable\n");
-        // You need to implement it
-    }
+	_reset();
+	DPRINTK("[JPUDRV] request vpu reset from application. \n");
+	return 0;
+}
+
+int jpu_clk_enable(void)
+{
+	_clk_control(1);
+	return 0;
+}
+
+void jpu_clk_disable(void)
+{
+	_clk_control(0);
 }
 
 
