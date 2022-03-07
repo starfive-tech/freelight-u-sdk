@@ -13,14 +13,14 @@ $cd $JPU_PATH && ./build_for_riscv.sh	#编译jpu driver && jpu 测试程序
 
 在freedom-u-sdk的buildroot编译工具链编译生成后，进入JPU_PATH,运行build_for_riscv.sh一键编译脚本。
 
- 该脚本会将编译出的驱动（jpu.ko）、用户态程序(jpg_enc_test 、jpg_dec_test、multi_instance_test)、脚本文件（script）、测试/配置源文件（cfg、steam、yuv）拷贝到initramfs的文件系统中，在freedom-u-sdk顶层目录make clean后重新make freedom-u-sdk工程，可以将所有文件打包到image.fit中，系统启动后可以直接进入到对应目录，运行测试程序。或者用户也可以待vic linux系统启动后，将编译好的相关文件，通过网络（比如scp tftp等）手动将需要的文件传输到initramfs文件系统中。
+ 该脚本会将编译出的驱动（jpu.ko）、用户态程序(jpg_enc_test 、jpg_dec_test、multi_instance_test)、脚本文件（script）、测试/配置源文件（cfg、steam、yuv）拷贝到initramfs的文件系统中，在freedom-u-sdk顶层目录删除work/initramfs.cpio.gz和work/image.fit文件后重新make freedom-u-sdk工程，可以将所有文件打包到image.fit中，系统启动后可以直接进入到对应目录，运行测试程序。或者用户也可以待vic linux系统启动后，将编译好的相关文件，通过网络（比如scp tftp等）手动将需要的文件传输到initramfs文件系统中。
 
 #### 一键运行脚本
 
 linux系统启动后
 
 ```shell
-$cd root/jpu/driver && ./load.sh  #安装模块驱动  
+$cd root/jpu_driver/driver && ./load.sh  #安装模块驱动  
 $cd ../ && ./run_all.sh 		  #运行所有测试项
 ```
 
