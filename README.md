@@ -50,14 +50,14 @@ U-SDK support different hardware boards, you should specify the board you use wh
 You can choose building your target board with `HWBOARD` variables.
 
 > For starlight-a1 or a2 board:  `make HWBOARD=starlight-a1`, or `make starlight-a1`
+> 
 > For starlight-a3 board:  `make HWBOARD=starlight`, or `make starlight`
+> 
 > For visionfive board: `make HWBOARD=visionfive`, or `make visionfive`
->
-> Or run `export HWBOARD=visionfive` first, then use it as before
 
-Note that if not specify the  `HWBOARD` , the default `make`  is for visionfive, just equal to `make HWBOARD=visionfive`
+Note that if not specify the  `HWBOARD` , the default `make`  is for `visionfive`, just equal to `make HWBOARD=visionfive`
 Also you can specify the system environment variables `HWBOARD` to choose the board, 
-eg. `export HWBOARD=visionfive`,  then run `make` 
+eg. `export HWBOARD=visionfive`,  then run `make` as the below. 
 
 By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
 
@@ -81,7 +81,8 @@ $ make uboot-menuconfig      # uboot menuconfig
 $ make linux-menuconfig      # Kernel menuconfig
 $ make buildroot_initramfs-menuconfig   # initramfs menuconfig
 $ make buildroot_rootfs-menuconfig      # rootfs menuconfig
-$ make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initrafs busybox menuconfig in
+$ make -C ./work/buildroot_initramfs/ O=./work/buildroot_initramfs busybox-menuconfig  # for initramfs busybox menuconfig
+$ make -C ./work/buildroot_rootfs/ O=./work/buildroot_rootfs busybox-menuconfig  # for rootfs busybox menuconfig
 ```
 
 ## Running on VisionFive/Starlight Board ##
@@ -137,54 +138,55 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 
 The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
 
-#### If switch from `DRM`to `Framebuffer` display framework with`hdmi` display device:
+#### If switch to `Framebuffer` display framework with`hdmi` display device:
 
-```
-1. Disable the DRM feature:
-   CONFIG_DRM_I2C_NXP_TDA998X
-   CONFIG_DRM_I2C_NXP_TDA9950
-   CONFIG_DRM_STARFIVE
+> 1. Disable the DRM feature:
+>    CONFIG_DRM_I2C_NXP_TDA998X
+>    CONFIG_DRM_I2C_NXP_TDA9950
+>    CONFIG_DRM_STARFIVE
+>
+> 2. Enable the Framebuffer feature:
+>    CONFIG_FB_STARFIVE
+>    CONFIG_FB_STARFIVE_HDMI_TDA998X
+>    CONFIG_FB_STARFIVE_VIDEO
+>
+> Note: Recommend disable the below:
+>    CONFIG_NVDLA
+>    CONFIG_FRAMEBUFFER_CONSOLE
 
-2. Enable the Framebuffer feature:
-   CONFIG_FB_STARFIVE
-   CONFIG_FB_STARFIVE_HDMI_TDA998X
-   CONFIG_FB_STARFIVE_VIDEO
+#### If switch to `DRM` display framework with `hdmi` display device:
 
-Note: Recommend Disable the below for usdk:
-   CONFIG_NVDLA
-   CONFIG_FRAMEBUFFER_CONSOLE
-```
+> 1. Disable the below kernel config
+>    CONFIG_FB_STARFIVE
+>    CONFIG_FB_STARFIVE_HDMI_TDA998X
+>    CONFIG_FB_STARFIVE_VIDEO
+>    CONFIG_NVDLA
+>
+> 2. Enable the below kernel config:
+>    CONFIG_DRM_I2C_NXP_TDA998X
+>    CONFIG_DRM_I2C_NXP_TDA9950
+>    CONFIG_DRM_STARFIVE
+>
+> Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
 
-#### If switch from `Framebuffer` to `DRM` display framework with `hdmi` display device:
+#### If switch to `DRM` display framework with`mipi dsi` display device:
 
-```
-1. Disable the below kernel config
-   CONFIG_FB_STARFIVE
-   CONFIG_FB_STARFIVE_HDMI_TDA998X
-   CONFIG_FB_STARFIVE_VIDEO
-   CONFIG_NVDLA
+> Based on the above "DRM with hdmi display device" config, enable the below kernel config:
+> CONFIG_DRM_STARFIVE_MIPI_DSI
 
-2. Enable the below kernel config:
-   CONFIG_DRM_I2C_NXP_TDA998X
-   CONFIG_DRM_STARFIVE
-   CONFIG_PHY_M31_DPHY_RX0
-
-3. Recommend to disable CONFIG_FRAMEBUFFER_CONSOLE, and CONFIG_DRM_STARFIVE_MIPI_DSI
-```
-
-#### If switch  from `Framebuffer`  to `DRM` display framework with`mipi dsi` display device:
-
-```
-based on the above drm to hdmi pipeline config, enable the below kernel config:
-CONFIG_PHY_M31_DPHY_RX0
-CONFIG_DRM_STARFIVE_MIPI_DSI
-```
 
 ## Appendix II: How to Support WM8960 and AC108 Audio Board 
 
 The visionfive and starlight board natively always support PWMDAC to audio-out (3.5mm mini-jack on the board), also support [WM8960 board](https://www.seeedstudio.com/ReSpeaker-2-Mics-Pi-HAT.html) to audio-in and audio-out, also support [AC108 board](https://www.seeedstudio.com/ReSpeaker-4-Mic-Array-for-Raspberry-Pi.html) to audio-in. Note that the WM8960 and AC108 could not be both supported.
 
  If support WM8960 board, need to modify the follow:
+
+> conf/visionfive_defconfig
+>
+> > CONFIG_SND_DESIGNWARE_I2S=y
+> > CONFIG_SND_DESIGNWARE_I2S_STARFIVE_JH7100=y
+> > CONFIG_SND_SOC_WM8960=y
+>
 
 > HiFive_U-Boot/board/starfive/jh7100/jh7100.c:
 >
@@ -195,15 +197,20 @@ The visionfive and starlight board natively always support PWMDAC to audio-out (
 > > #define STARFIVE_AUDIO_SPDIF    0
 > > #define STARFIVE_AUDIO_PDM        0
 >
-> HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dts:
+> linux/arch/riscv/boot/dts/starfive/jh7100-common.dtsi:
 >
-> > /* #include "codecs/sf_pdm.dtsi" \*/
-> > /\* #include "codecs/sf_spdif.dtsi" \*/
-> > /\* #include "codecs/sf_ac108.dtsi" \*/
-> > #include "codecs/sf_wm8960.dtsi"
-> > /\* #include "codecs/sf_vad.dtsi" \*/
+> > #define WM8960_ENABLED 1
+> > #undef AC108_ENABLED
+
 
  If support AC108 board, need to modify the follow:
+
+> conf/visionfive_defconfig
+>
+> > CONFIG_SND_DESIGNWARE_I2S=y
+> > CONFIG_SND_DESIGNWARE_I2S_STARFIVE_JH7100=y
+> > CONFIG_SND_SOC_AC108=y
+>
 
 > HiFive_U-Boot/board/starfive/jh7100/jh7100.c:
 >
@@ -214,16 +221,11 @@ The visionfive and starlight board natively always support PWMDAC to audio-out (
 > > #define STARFIVE_AUDIO_SPDIF    0
 > > #define STARFIVE_AUDIO_PDM        0
 >
-> HiFive_U-Boot/arch/riscv/dts/jh7100-beaglev-starlight.dts:
+> linux/arch/riscv/boot/dts/starfive/jh7100-common.dtsi:
 >
-> > /* #include "codecs/sf_pdm.dtsi" \*/
-> > /\* #include "codecs/sf_spdif.dtsi" \*/
-> > #include "codecs/sf_ac108.dtsi"
-> > /\*#include "codecs/sf_wm8960.dtsi" \*/
-> > /\* #include "codecs/sf_vad.dtsi" \*/
+> > #undef WM8960_ENABLED
+> > #define AC108_ENABLED 1
 >
-> Linux kernel config:
-> run `make linux-menuconfig`, then enable `SND_SOC_AC108` 
 
 
 ## Appendix III: Build TF Card Booting Image
@@ -240,20 +242,19 @@ CONFIG_USE_BOOTCOMMAND is not set
 to
 CONFIG_USE_BOOTCOMMAND=y
 
-change
-#CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
-to
+add
 CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
 ```
 
 Please insert the TF card and run command `df -h` to check the device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the following instructions to build TF card image:
 
 ```
-$ make buildroot_rootfs -jx
-$ make vpudriver-build-rootfs
+$ make HWBOARD=xxx -jx
+$ make HWBOARD=xxx buildroot_rootfs -jx
+$ make HWBOARD=xxx vpudriver-build-rootfs
 $ rm -rf work/buildroot_rootfs/images/rootfs.ext*
-$ make buildroot_rootfs -jx
-$ make DISK=/dev/sdX format-nvdla-rootfs && sync
+$ make HWBOARD=xxx buildroot_rootfs -jx
+$ make HWBOARD=xxx DISK=/dev/sdX format-nvdla-rootfs && sync
 ```
 Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
 
