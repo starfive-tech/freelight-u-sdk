@@ -15,12 +15,14 @@ extern SF_OMX_COMPONENT sf_dec_decoder_h265;
 extern SF_OMX_COMPONENT sf_dec_decoder_h264;
 extern SF_OMX_COMPONENT sf_enc_encoder_h265;
 extern SF_OMX_COMPONENT sf_enc_encoder_h264;
+extern SF_OMX_COMPONENT sf_dec_decoder_mjpeg;
 
-static SF_OMX_COMPONENT *sf_omx_component_list[] = {
+SF_OMX_COMPONENT *sf_omx_component_list[] = {
     &sf_dec_decoder_h265,
     &sf_dec_decoder_h264,
     &sf_enc_encoder_h265,
     &sf_enc_encoder_h264,
+    &sf_dec_decoder_mjpeg,
     NULL,
 };
 
@@ -225,99 +227,6 @@ OMX_API OMX_ERRORTYPE OMX_GetRolesOfComponent(
     return ret;
 }
 
-void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle)
-{
-    FunctionIn();
-    funcs->ComponentCreate = dlsym(sohandle, "ComponentCreate");
-    funcs->ComponentExecute = dlsym(sohandle, "ComponentExecute");
-    funcs->ComponentGetParameter = dlsym(sohandle, "ComponentGetParameter");
-    funcs->ComponentGetState = dlsym(sohandle, "ComponentGetState");
-    funcs->ComponentNotifyListeners = dlsym(sohandle, "ComponentNotifyListeners");
-    funcs->ComponentPortCreate = dlsym(sohandle, "ComponentPortCreate");
-    funcs->ComponentPortDestroy = dlsym(sohandle, "ComponentPortDestroy");
-    funcs->ComponentPortFlush = dlsym(sohandle, "ComponentPortFlush");
-    funcs->ComponentPortGetData = dlsym(sohandle, "ComponentPortGetData");
-    funcs->ComponentPortPeekData = dlsym(sohandle, "ComponentPortPeekData");
-    funcs->ComponentPortSetData = dlsym(sohandle, "ComponentPortSetData");
-    funcs->ComponentPortWaitReadyStatus = dlsym(sohandle, "ComponentPortWaitReadyStatus");
-    funcs->ComponentRelease = dlsym(sohandle, "ComponentRelease");
-    funcs->ComponentSetParameter = dlsym(sohandle, "ComponentSetParameter");
-    funcs->ComponentStop = dlsym(sohandle, "ComponentStop");
-    funcs->ComponentSetupTunnel = dlsym(sohandle, "ComponentSetupTunnel");
-    funcs->ComponentWait = dlsym(sohandle, "ComponentWait");
-    funcs->WaitBeforeComponentPortGetData = dlsym(sohandle, "WaitBeforeComponentPortGetData");
-    funcs->ComponentChangeState = dlsym(sohandle, "ComponentChangeState");
-    funcs->ComponentDestroy = dlsym(sohandle, "ComponentDestroy");
-    funcs->ComponentRegisterListener = dlsym(sohandle, "ComponentRegisterListener");
-    funcs->ComponentPortHasInputData = dlsym(sohandle, "ComponentPortHasInputData");
-    funcs->ComponentPortGetSize = dlsym(sohandle, "ComponentPortGetSize");
-    funcs->ComponentParamReturnTest = dlsym(sohandle, "ComponentParamReturnTest");
-    //Listener
-    funcs->SetupDecListenerContext = dlsym(sohandle, "SetupDecListenerContext");
-    funcs->SetupEncListenerContext = dlsym(sohandle, "SetupEncListenerContext");
-    funcs->ClearDecListenerContext = dlsym(sohandle, "ClearDecListenerContext");
-    funcs->HandleDecCompleteSeqEvent = dlsym(sohandle, "HandleDecCompleteSeqEvent");
-    funcs->HandleDecRegisterFbEvent = dlsym(sohandle, "HandleDecRegisterFbEvent");
-    funcs->HandleDecGetOutputEvent = dlsym(sohandle, "HandleDecGetOutputEvent");
-    funcs->HandleDecCloseEvent = dlsym(sohandle, "HandleDecCloseEvent");
-    funcs->ClearEncListenerContext = dlsym(sohandle, "ClearEncListenerContext");
-    funcs->HandleEncFullEvent = dlsym(sohandle, "HandleEncFullEvent");
-    funcs->HandleEncGetOutputEvent = dlsym(sohandle, "HandleEncGetOutputEvent");
-    funcs->HandleEncCompleteSeqEvent = dlsym(sohandle, "HandleEncCompleteSeqEvent");
-    funcs->HandleEncGetEncCloseEvent = dlsym(sohandle, "HandleEncGetEncCloseEvent");
-    funcs->EncoderListener = dlsym(sohandle, "EncoderListener");
-    funcs->DecoderListener = dlsym(sohandle, "DecoderListener");
-    // Helper
-    funcs->SetDefaultEncTestConfig = dlsym(sohandle, "SetDefaultEncTestConfig");
-    funcs->SetDefaultDecTestConfig = dlsym(sohandle, "SetDefaultDecTestConfig");
-    funcs->LoadFirmware = dlsym(sohandle, "LoadFirmware");
-    funcs->SetupEncoderOpenParam = dlsym(sohandle, "SetupEncoderOpenParam");
-    funcs->SetUpDecoderOpenParam = dlsym(sohandle, "SetUpDecoderOpenParam");
-    // VPU
-    funcs->VPU_GetProductId = dlsym(sohandle, "VPU_GetProductId");
-    funcs->Queue_Enqueue = dlsym(sohandle, "Queue_Enqueue");
-    funcs->Queue_Get_Cnt = dlsym(sohandle, "Queue_Get_Cnt");
-    funcs->VPU_DecClrDispFlag = dlsym(sohandle, "VPU_DecClrDispFlag");
-    funcs->VPU_DecGetFrameBuffer = dlsym(sohandle, "VPU_DecGetFrameBuffer");
-    funcs->Render_DecClrDispFlag = dlsym(sohandle, "Render_DecClrDispFlag");
-    // VPU Log
-    funcs->InitLog = dlsym(sohandle, "InitLog");
-    funcs->DeInitLog = dlsym(sohandle, "DeInitLog");
-    funcs->SetMaxLogLevel = dlsym(sohandle, "SetMaxLogLevel");
-    funcs->GetMaxLogLevel = dlsym(sohandle, "GetMaxLogLevel");
-
-    //Renderer
-    funcs->AllocateFrameBuffer2 = dlsym(sohandle, "AllocateFrameBuffer2");
-    funcs->AttachDMABuffer = dlsym(sohandle, "AttachDMABuffer");
-    funcs->SetRenderTotalBufferNumber = dlsym(sohandle, "SetRenderTotalBufferNumber");
-    funcs->WaitForExecoderReady = dlsym(sohandle, "WaitForExecoderReady");
-    FunctionOut();
-}
-
-SF_OMX_COMPONENT *GetSFOMXComponrntByComponent(Component *pComponent)
-{
-    SF_OMX_COMPONENT *pSFOMXComponent = NULL;
-    int size = GetNumberOfComponent();
-
-    FunctionIn();
-    for (int i = 0; i < size; i++)
-    {
-        pSFOMXComponent = sf_omx_component_list[i];
-        if (pSFOMXComponent == NULL)
-        {
-            goto EXIT;
-        }
-        if (pSFOMXComponent->hSFComponentExecoder == pComponent || pSFOMXComponent->hSFComponentFeeder == pComponent || pSFOMXComponent->hSFComponentRender == pComponent)
-        {
-            break;
-        }
-    }
-EXIT:
-    FunctionOut();
-
-    return pSFOMXComponent;
-}
-
 OMX_ERRORTYPE ClearOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer)
 {
     OMX_U32 i = 0;
@@ -326,6 +235,7 @@ OMX_ERRORTYPE ClearOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADER
         if (pSfOMXComponent->pBufferArray[i] == pBuffer)
         {
             pSfOMXComponent->pBufferArray[i] = NULL;
+            LOG(SF_LOG_DEBUG, "Clear OMX buffer %p at index %d\r\n", pBuffer, i);
             return OMX_ErrorNone;
         }
     }
@@ -344,6 +254,7 @@ OMX_U32 GetOMXBufferCount(SF_OMX_COMPONENT *pSfOMXComponent)
     {
         if (pSfOMXComponent->pBufferArray[i] != NULL)
         {
+            LOG(SF_LOG_DEBUG, "find OMX buffer %p at index %d\r\n", pSfOMXComponent->pBufferArray[i], i);
             count++;
         }
     }
@@ -359,6 +270,7 @@ OMX_ERRORTYPE StoreOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADER
         if (pSfOMXComponent->pBufferArray[i] == NULL)
         {
             pSfOMXComponent->pBufferArray[i] = pBuffer;
+            LOG(SF_LOG_DEBUG, "Store OMX buffer %p at index %d\r\n", pBuffer, i);
             return OMX_ErrorNone;
         }
     }
@@ -378,6 +290,11 @@ OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_
     for (i = 0; i < sizeof(pSfOMXComponent->pBufferArray) / sizeof(pSfOMXComponent->pBufferArray[0]); i++)
     {
         pOMXBuffer = pSfOMXComponent->pBufferArray[i];
+        LOG(SF_LOG_DEBUG, "Compare OMX buffer %p at index %d with addr %p\r\n", pOMXBuffer, i, pAddr);
+        if (pOMXBuffer == NULL)
+        {
+            continue;
+        }
         if (pOMXBuffer->pBuffer == pAddr)
         {
             return pOMXBuffer;
@@ -388,7 +305,20 @@ OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_
     FunctionOut();
     return NULL;
 }
+void SF_LogMsgAppend(int level, const char *format, ...)
+{
+    va_list ptr;
 
+    if (level > gDebugLevel)
+    {
+        return;
+    }
+    
+    printf("%66s\t", " ");
+    va_start(ptr, format);
+    vprintf(format, ptr);
+    va_end(ptr);
+}
 void SF_LogMsg(int level, const char *function, int line, const char *format, ...)
 {
     char *prefix = "";

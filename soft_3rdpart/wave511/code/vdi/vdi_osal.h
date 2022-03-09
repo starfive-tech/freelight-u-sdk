@@ -29,7 +29,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "vputypes.h"
+#ifdef USE_FEEDING_METHOD_BUFFER
+    #include "wave511/vpuapi/vputypes.h"
+#else
+    #include "vputypes.h"
+#endif
 
 enum
 {

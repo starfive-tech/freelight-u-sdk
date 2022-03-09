@@ -26,9 +26,16 @@
 #ifndef _COMPONENT_H_
 #define _COMPONENT_H_
 
-#include "config.h"
-#include "vpuapifunc.h"
-#include "main_helper.h"
+#ifdef USE_FEEDING_METHOD_BUFFER
+    #include "wave511/config.h"
+    #include "wave511/vpuapi/vpuapifunc.h"
+    #include "wave511/sample_v2/helper/main_helper.h"
+#else
+    #include "config.h"
+    #include "vpuapifunc.h"
+    #include "main_helper.h"
+#endif
+
 
 #define MAX_QUEUE_NUM 5
 

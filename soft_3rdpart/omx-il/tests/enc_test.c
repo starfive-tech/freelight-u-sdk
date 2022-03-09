@@ -276,7 +276,7 @@ int main(int argc, char *argv)
     }
 
     /*omx init*/
-    OMX_HANDLETYPE hComponentEncoder;
+    OMX_HANDLETYPE hComponentEncoder = NULL;
     OMX_CALLBACKTYPE callbacks;
     int ret = OMX_ErrorNone;
     signal(SIGINT, signal_handle);

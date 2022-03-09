@@ -25,7 +25,11 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include "jputypes.h"
+#ifdef USE_FEEDING_METHOD_BUFFER
+    #include "codaj12/jpuapi/jputypes.h"
+#else
+    #include "jputypes.h"
+#endif
 
 
 
