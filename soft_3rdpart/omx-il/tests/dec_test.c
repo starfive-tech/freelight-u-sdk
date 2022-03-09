@@ -324,6 +324,8 @@ int main(int argc, char *argv)
     OMX_INIT_STRUCTURE(pOutputPortDefinition);
     pOutputPortDefinition.nPortIndex = 1;
     OMX_GetParameter(decodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
+    pOutputPortDefinition.format.video.nFrameWidth = codecParameters->width;
+    pOutputPortDefinition.format.video.nFrameHeight = codecParameters->height;
     if (strstr(decodeTestContext->sOutputFormat, "nv12") != NULL)
     {
         pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
