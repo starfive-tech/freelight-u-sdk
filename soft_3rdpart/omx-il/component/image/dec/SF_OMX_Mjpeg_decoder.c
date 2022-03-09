@@ -927,6 +927,15 @@ static void ProcessThread(void *args)
         OMX_U8 *virtAddr = (OMX_U8 *)pFrame->vbY.virt_addr;
         //TODO: Get OMX buffer by virt addr
         OMX_BUFFERHEADERTYPE *pBuffer = GetOMXBufferByAddr(pSfOMXComponent, virtAddr);
+        if (pBuffer == NULL)
+        {
+            LOG(SF_LOG_ERR, "Could not find omx buffer by address\r\n");
+            LOG(SF_LOG_DEBUG, "OMX_EventBufferFlag IN\r\n");
+            pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, OMX_EventBufferFlag,
+                                    1, 1, NULL);
+            LOG(SF_LOG_DEBUG, "OMX_EventBufferFlag OUT\r\n");
+            goto end;
+        }
         ClearOMXBuffer(pSfOMXComponent, pBuffer);
         switch (pSfCodaj12Implement->frameFormat)
         {
@@ -984,6 +993,7 @@ static void ProcessThread(void *args)
     CodaJ12FlushBuffer(pSfOMXComponent, OMX_INPUT_PORT_INDEX);
     CodaJ12FlushBuffer(pSfOMXComponent, OMX_OUTPUT_PORT_INDEX);
     pSfCodaj12Implement->currentState = OMX_StateIdle;
+end:
     FunctionOut();
     ThreadExit(NULL);
 }
