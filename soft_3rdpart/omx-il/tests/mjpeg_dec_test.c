@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include "libavformat/avformat.h"
+#include <OMX_Image.h>
 #include <OMX_Core.h>
 #include <OMX_Component.h>
 #include <OMX_Video.h>
@@ -37,7 +38,6 @@ typedef struct DecodeTestContext
     OMX_HANDLETYPE hComponentDecoder;
     char sOutputFilePath[64];
     char sInputFilePath[64];
-    char sOutputFormat[64];
     OMX_BUFFERHEADERTYPE *pInputBufferArray[64];
     OMX_BUFFERHEADERTYPE *pOutputBufferArray[64];
     AVFormatContext *avContext;
@@ -66,6 +66,7 @@ static OMX_ERRORTYPE event_handler(
         OMX_GetParameter(pDecodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
         OMX_U32 nOutputBufferSize = pOutputPortDefinition.nBufferSize;
         OMX_U32 nOutputBufferCount = pOutputPortDefinition.nBufferCountMin;
+        printf("allocate %d output buffers size %d\r\n", nOutputBufferCount, nOutputBufferSize);
         for (int i = 0; i < nOutputBufferCount; i++)
         {
             OMX_BUFFERHEADERTYPE *pBuffer = NULL;
@@ -94,7 +95,7 @@ static OMX_ERRORTYPE event_handler(
 
 static void help()
 {
-    printf("./omx_dec_test -i <input file> -o <output file> \r\n");
+    printf("./omx_mjpeg_dec_test -i <input file> -o <output file> \r\n");
 }
 
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
@@ -176,6 +177,8 @@ static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERH
     pInputBuffer->nFlags = 0x10;
     pInputBuffer->nFilledLen = avpacket.size;
     memcpy(pInputBuffer->pBuffer, avpacket.data, avpacket.size);
+    printf("%s, address = %p, size = %d, flag = %x\r\n", 
+        __FUNCTION__, pInputBuffer->pBuffer, pInputBuffer->nFilledLen, pInputBuffer->nFlags);
     return avpacket.size;
 }
 
@@ -196,19 +199,18 @@ int main(int argc, char *argv)
     decodeTestContext->msgid = msgid;
     struct option longOpt[] = {
         {"output", required_argument, NULL, 'o'},
-        {"input", required_argument, NULL, 'i'},
-        {"format", required_argument, NULL, 'f'},
+        {"input", required_argument, NULL, 'f'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:f:";
+    OMX_S8 *shortOpt = "i:o:";
     OMX_U32 c;
     OMX_S32 l;
 
-    if (argc == 0)
-    {
-        help();
-        return;
-    }
+    // if (argc == 0)
+    // {
+    //     help();
+    //     return;
+    // }
 
     while ((c = getopt_long(argc, argv, shortOpt, longOpt, &l)) != -1)
     {
@@ -230,10 +232,6 @@ int main(int argc, char *argv)
             printf("output: %s\r\n", optarg);
             memcpy(decodeTestContext->sOutputFilePath, optarg, strlen(optarg));
             break;
-        case 'f':
-            printf("format: %s\r\n", optarg);
-            memcpy(decodeTestContext->sOutputFormat, optarg, strlen(optarg));
-            break;
         case 'h':
         default:
             help();
@@ -251,7 +249,7 @@ int main(int argc, char *argv)
     AVFormatContext *avContext = NULL;
     AVCodecParameters *codecParameters = NULL;
     AVInputFormat *fmt = NULL;
-    OMX_S32 videoIndex;
+    OMX_S32 imageIndex;
     if ((avContext = avformat_alloc_context()) == NULL)
     {
         printf("avformat_alloc_context fail\r\n");
@@ -276,21 +274,21 @@ int main(int argc, char *argv)
     }
 
     printf("av_find_best_stream\r\n");
-    videoIndex = av_find_best_stream(avContext, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-    if (videoIndex < 0)
+    imageIndex = av_find_best_stream(avContext, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+    if (imageIndex < 0)
     {
         printf("%s:%d failed to av_find_best_stream.\n", __FUNCTION__, __LINE__);
         return;
     }
-    printf("video index = %d\r\n", videoIndex);
+    printf("image index = %d\r\n", imageIndex);
     decodeTestContext->avContext = avContext;
-    /*get video info*/
-    codecParameters = avContext->streams[videoIndex]->codecpar;
+    /*get image info*/
+    codecParameters = avContext->streams[imageIndex]->codecpar;
     printf("codec_id = %d, width = %d, height = %d\r\n", (int)codecParameters->codec_id,
            codecParameters->width, codecParameters->height);
 
     /*omx init*/
-    OMX_HANDLETYPE hComponentDecoder  = NULL;
+    OMX_HANDLETYPE hComponentDecoder = NULL;
     OMX_CALLBACKTYPE callbacks;
     int ret = OMX_ErrorNone;
     signal(SIGINT, signal_handle);
@@ -305,55 +303,26 @@ int main(int argc, char *argv)
     callbacks.EventHandler = event_handler;
     callbacks.FillBufferDone = fill_output_buffer_done_handler;
     callbacks.EmptyBufferDone = empty_buffer_done_handler;
-    printf("get handle\r\n");
-    if (codecParameters->codec_id == AV_CODEC_ID_H264)
+    printf("get handle by codec id = %d\r\n", codecParameters->codec_id);
+    if (codecParameters->codec_id == AV_CODEC_ID_MJPEG)
     {
-        OMX_GetHandle(&hComponentDecoder, "sf.dec.decoder.h264", decodeTestContext, &callbacks);
+        OMX_GetHandle(&hComponentDecoder, "sf.dec.decoder.mjpeg", decodeTestContext, &callbacks);
     }
-    else if (codecParameters->codec_id == AV_CODEC_ID_HEVC)
-    {
-        OMX_GetHandle(&hComponentDecoder, "sf.dec.decoder.h265", decodeTestContext, &callbacks);
-    }
+
     if (hComponentDecoder == NULL)
     {
         printf("could not get handle\r\n");
         return 0;
     }
     decodeTestContext->hComponentDecoder = hComponentDecoder;
-     
-    OMX_PARAM_PORTDEFINITIONTYPE pOutputPortDefinition;
-    OMX_INIT_STRUCTURE(pOutputPortDefinition);
-    pOutputPortDefinition.nPortIndex = 1;
-    OMX_GetParameter(decodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
-    pOutputPortDefinition.format.video.nFrameWidth = codecParameters->width;
-    pOutputPortDefinition.format.video.nFrameHeight = codecParameters->height;
-    if (strstr(decodeTestContext->sOutputFormat, "nv12") != NULL)
-    {
-        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-    }
-    else if (strstr(decodeTestContext->sOutputFormat, "nv21") != NULL)
-    {
-        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedSemiPlanar;
-    }
-    else if (strstr(decodeTestContext->sOutputFormat, "i420") != NULL)
-    {
-        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
-    }
-    else
-    {
-        printf("Unsupported color format!\r\n");
-        goto end;
-    }
-    OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
-
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
     OMX_PARAM_PORTDEFINITIONTYPE pInputPortDefinition;
     OMX_INIT_STRUCTURE(pInputPortDefinition);
     pInputPortDefinition.nPortIndex = 0;
     OMX_GetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
-    pInputPortDefinition.format.video.nFrameWidth = codecParameters->width;
-    pInputPortDefinition.format.video.nFrameHeight = codecParameters->height;
+    pInputPortDefinition.format.image.nFrameWidth = codecParameters->width;
+    pInputPortDefinition.format.image.nFrameHeight = codecParameters->height;
     OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
     /*Alloc input buffer*/
     OMX_U32 nInputWidth = codecParameters->width;
@@ -394,9 +363,13 @@ int main(int argc, char *argv)
         {
             OMX_BUFFERHEADERTYPE *pBuffer = data.pBuffer;
             OMX_STRING sFilePath = decodeTestContext->sOutputFilePath;
+            printf("write %d buffers to file\r\n", pBuffer->nFilledLen);
             FILE *fb = fopen(sFilePath, "ab+");
-            fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
+            size_t size = fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
+            int error = ferror(fb);
+            printf("write error = %d\r\n", error);
             fclose(fb);
+            printf("write %d buffers finish\r\n", size);
             if (pBuffer->nFlags & OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS)
             {
                 goto end;

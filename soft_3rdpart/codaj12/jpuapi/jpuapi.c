@@ -230,7 +230,7 @@ JpgRet JPU_DecOpen(JpgDecHandle * pHandle, JpgDecOpenParam * pop)
 
     pDecInfo->streamWrPtr = pop->bitstreamBuffer;
     pDecInfo->streamRdPtr = pop->bitstreamBuffer;
-
+    JLOG(INFO, "streamWrPtr = %x\r\n", pop->bitstreamBuffer);
     pDecInfo->streamBufStartAddr = pop->bitstreamBuffer;
     pDecInfo->streamBufSize     = pop->bitstreamBufferSize;
     pDecInfo->streamBufEndAddr  = pop->bitstreamBuffer + pop->bitstreamBufferSize;
@@ -374,6 +374,21 @@ JpgRet JPU_DecGetInitialInfo(JpgDecHandle handle, JpgDecInitialInfo * info)
     return JPG_RET_SUCCESS;
 }
 
+FrameBuffer *JPU_GetFrameBufPool(JpgDecHandle handle)
+{
+    JpgInst * pJpgInst;
+    JpgDecInfo * pDecInfo;
+    JpgRet ret;
+
+
+    ret = CheckJpgInstValidity(handle);
+    if (ret != JPG_RET_SUCCESS)
+        return NULL;
+
+    pJpgInst = handle;
+    pDecInfo = &pJpgInst->JpgInfo->decInfo;
+    return pDecInfo->frameBufPool;
+}
 
 JpgRet JPU_DecRegisterFrameBuffer(JpgDecHandle handle, FrameBuffer * bufArray, int num, int stride)
 {
@@ -411,6 +426,61 @@ JpgRet JPU_DecRegisterFrameBuffer(JpgDecHandle handle, FrameBuffer * bufArray, i
     pDecInfo->stride          = stride;
     pDecInfo->stride_c        = bufArray[0].strideC;
 
+    return JPG_RET_SUCCESS;
+}
+
+JpgRet JPU_DecRegisterFrameBuffer2(JpgDecHandle handle, FrameBuffer * bufArray, int stride)
+{
+    JpgInst * pJpgInst;
+    JpgDecInfo * pDecInfo;
+    JpgRet ret;
+    int number;
+
+    ret = CheckJpgInstValidity(handle);
+    if (ret != JPG_RET_SUCCESS)
+        return ret;
+
+    pJpgInst = handle;
+    pDecInfo = &pJpgInst->JpgInfo->decInfo;
+    number = pDecInfo->numFrameBuffers;
+
+    if (!pDecInfo->initialInfoObtained) {
+        return JPG_RET_WRONG_CALL_SEQUENCE;
+    }
+
+    if (bufArray == 0) {
+        return JPG_RET_INVALID_FRAME_BUFFER;
+    }
+
+    if ((stride % 8) != 0) {
+        return JPG_RET_INVALID_STRIDE;
+    }
+
+    
+    if (pDecInfo->frameBufPool == NULL)
+    {
+        //First register
+        JLOG(INFO, "%s First register frame buffer\r\n", __FUNCTION__);
+        pDecInfo->frameBufPool = bufArray;
+        pDecInfo->stride          = stride;
+        pDecInfo->stride_c        = bufArray->strideC;
+    }
+    
+    //check wether frameBufPool and bufArray match
+    if (pDecInfo->frameBufPool[number].bufY != bufArray->bufY)
+    {
+        JLOG(ERR, "Does not support discontinuous array!\n");
+        return JPG_RET_FAILURE;
+    }
+    number ++;
+
+    if (number >= MAX_FRAME)
+    {
+        JLOG(ERR, "Too lot of frame buffer! %d/%d\n", number, MAX_FRAME);
+        return JPG_RET_FAILURE;
+    }
+    pDecInfo->numFrameBuffers = number;
+    JLOG(INFO, "%s numFrameBuffers = %d\r\n", __FUNCTION__, pDecInfo->numFrameBuffers);
     return JPG_RET_SUCCESS;
 }
 
@@ -883,6 +953,9 @@ JpgRet JPU_DecStartOneFrame(JpgDecHandle handle, JpgDecParam *param)
     JpuWriteInstReg(instRegIndex, MJPEG_ROT_INFO_REG, (ppuEnable<<4) | (pDecInfo->mirrorIndex<<2) | pDecInfo->rotationIndex);
 
     val = (pDecInfo->frameIdx % pDecInfo->numFrameBuffers);
+    JLOG(INFO, "%s: bufY = %lx bufCb = %lx bufCr = %lx stride = %d stride_c = %d\r\n", __FUNCTION__,
+        pDecInfo->frameBufPool[val].bufY, pDecInfo->frameBufPool[val].bufCb, pDecInfo->frameBufPool[val].bufCr, 
+        pDecInfo->stride, pDecInfo->stride_c);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE00_REG, pDecInfo->frameBufPool[val].bufY);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE01_REG, pDecInfo->frameBufPool[val].bufCb);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE02_REG, pDecInfo->frameBufPool[val].bufCr);

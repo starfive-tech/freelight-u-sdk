@@ -26,9 +26,17 @@
 #ifndef _VDI_H_
 #define _VDI_H_
 
-#include "mm.h"
-#include "vpuconfig.h"
-#include "vputypes.h"
+#ifdef USE_FEEDING_METHOD_BUFFER
+    #include "wave511/vdi/mm.h"
+    #include "wave511/vpuapi/vpuconfig.h"
+    #include "wave511/vpuapi/vputypes.h"
+#else
+    #include "mm.h"
+    #include "vpuconfig.h"
+    #include "vputypes.h"
+#endif
+
+
 
 /************************************************************************/
 /* COMMON REGISTERS                                                     */

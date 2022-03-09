@@ -4,6 +4,9 @@
  */
 #include "SF_OMX_video_common.h"
 
+extern SF_OMX_COMPONENT *sf_omx_component_list[];
+static void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle);
+
 OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
@@ -11,7 +14,7 @@ OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATE
     SF_OMX_COMPONENT *pSfOMXComponent = NULL;
     ComponentState state;
     OMX_STATETYPE nextState;
-
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = NULL;
     FunctionIn();
     if (hComponent == NULL)
     {
@@ -20,8 +23,9 @@ OMX_ERRORTYPE GetStateCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATE
     }
     pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
     nextState = pSfOMXComponent->nextState;
-    state = pSfOMXComponent->functions->ComponentGetState(pSfOMXComponent->hSFComponentExecoder);
+    state = pSfVideoImplement->functions->ComponentGetState(pSfVideoImplement->hSFComponentExecoder);
     LOG(SF_LOG_INFO, "state = %d\r\n", state);
 
     switch (state)
@@ -50,20 +54,22 @@ EXIT:
     return ret;
 }
 
-OMX_ERRORTYPE ComponentClearCommon(SF_OMX_COMPONENT *hComponent)
+OMX_ERRORTYPE ComponentClearCommon(SF_OMX_COMPONENT *pSfOMXComponent)
 {
-    hComponent->functions->ComponentRelease(hComponent->hSFComponentExecoder);
-    hComponent->functions->ComponentDestroy(hComponent->hSFComponentExecoder, NULL);
-    hComponent->functions->DeInitLog();
-    dlclose(hComponent->soHandle);
-    free(hComponent->functions);
-    free(hComponent->testConfig);
-    free(hComponent->config);
-    free(hComponent->lsnCtx);
-    free(hComponent->pOMXComponent);
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+
+    pSfVideoImplement->functions->ComponentRelease(pSfVideoImplement->hSFComponentExecoder);
+    pSfVideoImplement->functions->ComponentDestroy(pSfVideoImplement->hSFComponentExecoder, NULL);
+    pSfVideoImplement->functions->DeInitLog();
+    dlclose(pSfOMXComponent->soHandle);
+    free(pSfVideoImplement->functions);
+    free(pSfVideoImplement->testConfig);
+    free(pSfVideoImplement->config);
+    free(pSfVideoImplement->lsnCtx);
+    free(pSfOMXComponent->pOMXComponent);
     for (int i = 0; i < 2; i++)
     {
-        OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &hComponent->portDefinition[i];
+        OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &pSfOMXComponent->portDefinition[i];
         free(pPortDefinition->format.video.cMIMEType);
     }
     return OMX_ErrorNone;
@@ -123,99 +129,110 @@ BOOL CheckDecTestConfig(TestDecConfig *testConfig)
     return isValidParameters;
 }
 
-OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
+OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *pSfOMXComponent)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     char *strDebugLevel = NULL;
     int debugLevel = 0;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = NULL;
 
     FunctionIn();
-    if (hComponent == NULL)
+    if (pSfOMXComponent == NULL)
     {
         ret = OMX_ErrorBadParameter;
         goto EXIT;
     }
 
-    hComponent->pOMXComponent = malloc(sizeof(OMX_COMPONENTTYPE));
-    if (hComponent->pOMXComponent == NULL)
+    pSfOMXComponent->pOMXComponent = malloc(sizeof(OMX_COMPONENTTYPE));
+    if (pSfOMXComponent->pOMXComponent == NULL)
     {
         ret = OMX_ErrorInsufficientResources;
         LOG(SF_LOG_ERR, "malloc fail\r\n");
         goto ERROR;
     }
-    memset(hComponent->pOMXComponent, 0, sizeof(OMX_COMPONENTTYPE));
-    hComponent->soHandle = dlopen(hComponent->libName, RTLD_NOW);
-    if (hComponent->soHandle == NULL)
+    memset(pSfOMXComponent->pOMXComponent, 0, sizeof(OMX_COMPONENTTYPE));
+    pSfOMXComponent->soHandle = dlopen(pSfOMXComponent->libName, RTLD_NOW);
+    if (pSfOMXComponent->soHandle == NULL)
     {
         ret = OMX_ErrorInsufficientResources;
-        LOG(SF_LOG_ERR, "could not open %s\r\n", hComponent->libName);
+        LOG(SF_LOG_ERR, "could not open %s\r\n", pSfOMXComponent->libName);
         goto ERROR;
     }
 
-    hComponent->functions = malloc(sizeof(SF_COMPONENT_FUNCTIONS));
-    if (hComponent->functions == NULL)
+    pSfOMXComponent->componentImpl = malloc(sizeof(SF_WAVE5_IMPLEMEMT));
+    if (pSfOMXComponent->componentImpl == NULL)
     {
         ret = OMX_ErrorInsufficientResources;
         LOG(SF_LOG_ERR, "malloc fail\r\n");
         goto ERROR;
     }
-    memset(hComponent->functions, 0, sizeof(SF_COMPONENT_FUNCTIONS));
-    sf_get_component_functions(hComponent->functions, hComponent->soHandle);
+    pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    memset(pSfVideoImplement, 0, sizeof(SF_WAVE5_IMPLEMEMT));
+
+    pSfVideoImplement->functions = malloc(sizeof(SF_COMPONENT_FUNCTIONS));
+    if (pSfVideoImplement->functions == NULL)
+    {
+        ret = OMX_ErrorInsufficientResources;
+        LOG(SF_LOG_ERR, "malloc fail\r\n");
+        goto ERROR;
+    }
+    memset(pSfVideoImplement->functions, 0, sizeof(SF_COMPONENT_FUNCTIONS));
+    sf_get_component_functions(pSfVideoImplement->functions, pSfOMXComponent->soHandle);
 
     // Init VPU log
-    if (hComponent->functions->InitLog && hComponent->functions->SetMaxLogLevel)
+    if (pSfVideoImplement->functions->InitLog && pSfVideoImplement->functions->SetMaxLogLevel)
     {
-        hComponent->functions->InitLog();
+        pSfVideoImplement->functions->InitLog();
         strDebugLevel = getenv("VPU_DEBUG");
         if (strDebugLevel)
         {
             debugLevel = atoi(strDebugLevel);
             if (debugLevel >=0)
             {
-                hComponent->functions->SetMaxLogLevel(debugLevel);
+                pSfVideoImplement->functions->SetMaxLogLevel(debugLevel);
             }
         }
     }
 
-    if (strstr(hComponent->componentName, "sf.enc") != NULL)
+    if (strstr(pSfOMXComponent->componentName, "sf.enc") != NULL)
     {
-        hComponent->testConfig = malloc(sizeof(TestEncConfig));
-        if (hComponent->testConfig == NULL)
+        pSfVideoImplement->testConfig = malloc(sizeof(TestEncConfig));
+        if (pSfVideoImplement->testConfig == NULL)
         {
             ret = OMX_ErrorInsufficientResources;
             LOG(SF_LOG_ERR, "malloc fail\r\n");
             goto ERROR;
         }
-        hComponent->lsnCtx = malloc(sizeof(EncListenerContext));
-        if (hComponent->lsnCtx == NULL)
+        pSfVideoImplement->lsnCtx = malloc(sizeof(EncListenerContext));
+        if (pSfVideoImplement->lsnCtx == NULL)
         {
             ret = OMX_ErrorInsufficientResources;
             LOG(SF_LOG_ERR, "malloc fail\r\n");
             goto ERROR;
         }
-        memset(hComponent->testConfig, 0, sizeof(TestEncConfig));
-        memset(hComponent->lsnCtx, 0, sizeof(EncListenerContext));
-        hComponent->functions->SetDefaultEncTestConfig(hComponent->testConfig);
+        memset(pSfVideoImplement->testConfig, 0, sizeof(TestEncConfig));
+        memset(pSfVideoImplement->lsnCtx, 0, sizeof(EncListenerContext));
+        pSfVideoImplement->functions->SetDefaultEncTestConfig(pSfVideoImplement->testConfig);
     }
-    else if (strstr(hComponent->componentName, "sf.dec") != NULL)
+    else if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
     {
-        hComponent->testConfig = malloc(sizeof(TestDecConfig));
-        if (hComponent->testConfig == NULL)
+        pSfVideoImplement->testConfig = malloc(sizeof(TestDecConfig));
+        if (pSfVideoImplement->testConfig == NULL)
         {
             ret = OMX_ErrorInsufficientResources;
             LOG(SF_LOG_ERR, "malloc fail\r\n");
             goto ERROR;
         }
-        hComponent->lsnCtx = malloc(sizeof(DecListenerContext));
-        if (hComponent->lsnCtx == NULL)
+        pSfVideoImplement->lsnCtx = malloc(sizeof(DecListenerContext));
+        if (pSfVideoImplement->lsnCtx == NULL)
         {
             ret = OMX_ErrorInsufficientResources;
             LOG(SF_LOG_ERR, "malloc fail\r\n");
             goto ERROR;
         }
-        memset(hComponent->testConfig, 0, sizeof(TestDecConfig));
-        memset(hComponent->lsnCtx, 0, sizeof(DecListenerContext));
-        hComponent->functions->SetDefaultDecTestConfig(hComponent->testConfig);
+        memset(pSfVideoImplement->testConfig, 0, sizeof(TestDecConfig));
+        memset(pSfVideoImplement->lsnCtx, 0, sizeof(DecListenerContext));
+        pSfVideoImplement->functions->SetDefaultDecTestConfig(pSfVideoImplement->testConfig);
     }
     else
     {
@@ -224,21 +241,36 @@ OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
         goto ERROR;
     }
 
-    hComponent->config = malloc(sizeof(CNMComponentConfig));
-    if (hComponent->config == NULL)
+    if (strstr(pSfOMXComponent->componentName, "264") != NULL)
+    {
+        pSfVideoImplement->bitFormat = STD_AVC;
+    }
+    else if (strstr(pSfOMXComponent->componentName, "265") != NULL)
+    {
+        pSfVideoImplement->bitFormat = STD_HEVC;
+    }
+    else
+    {
+        ret = OMX_ErrorBadParameter;
+        LOG(SF_LOG_ERR, "unknown format!\r\n");
+        goto ERROR;
+    }
+
+    pSfVideoImplement->config = malloc(sizeof(CNMComponentConfig));
+    if (pSfVideoImplement->config == NULL)
     {
         ret = OMX_ErrorInsufficientResources;
         LOG(SF_LOG_ERR, "malloc fail\r\n");
         goto ERROR;
     }
-    memset(hComponent->config, 0, sizeof(CNMComponentConfig));
+    memset(pSfVideoImplement->config, 0, sizeof(CNMComponentConfig));
 
-    hComponent->pOMXComponent->pComponentPrivate = hComponent;
+    pSfOMXComponent->pOMXComponent->pComponentPrivate = pSfOMXComponent;
     for (int i = 0; i < 2; i++)
     {
-        OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &hComponent->portDefinition[i];
-        OMX_VIDEO_PARAM_AVCTYPE *pAVCComponent = &hComponent->AVCComponent[i];
-        OMX_VIDEO_PARAM_HEVCTYPE *pHEVCComponent = &hComponent->HEVCComponent[i];
+        OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &pSfOMXComponent->portDefinition[i];
+        OMX_VIDEO_PARAM_AVCTYPE *pAVCComponent = &pSfVideoImplement->AVCComponent[i];
+        OMX_VIDEO_PARAM_HEVCTYPE *pHEVCComponent = &pSfVideoImplement->HEVCComponent[i];
         INIT_SET_SIZE_VERSION(pPortDefinition, OMX_PARAM_PORTDEFINITIONTYPE);
         INIT_SET_SIZE_VERSION(pAVCComponent, OMX_VIDEO_PARAM_AVCTYPE);
         INIT_SET_SIZE_VERSION(pHEVCComponent, OMX_VIDEO_PARAM_HEVCTYPE);
@@ -276,99 +308,209 @@ OMX_ERRORTYPE InitComponentStructorCommon(SF_OMX_COMPONENT *hComponent)
         pHEVCComponent->eProfile = OMX_VIDEO_HEVCProfileMain;
     }
 
-    hComponent->portDefinition[0].eDir = OMX_DirInput;
-    hComponent->portDefinition[0].nBufferSize = DEFAULT_VIDEO_INPUT_BUFFER_SIZE;
-    hComponent->portDefinition[0].nBufferCountActual = VPU_INPUT_BUF_NUMBER;
-    hComponent->portDefinition[0].nBufferCountMin = VPU_INPUT_BUF_NUMBER;
+    pSfOMXComponent->portDefinition[0].eDir = OMX_DirInput;
+    pSfOMXComponent->portDefinition[0].nBufferSize = DEFAULT_VIDEO_INPUT_BUFFER_SIZE;
+    pSfOMXComponent->portDefinition[0].nBufferCountActual = VPU_INPUT_BUF_NUMBER;
+    pSfOMXComponent->portDefinition[0].nBufferCountMin = VPU_INPUT_BUF_NUMBER;
 
-    strcpy(hComponent->portDefinition[1].format.video.cMIMEType, "raw/video");
-    hComponent->portDefinition[1].format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
-    hComponent->portDefinition[1].eDir = OMX_DirOutput;
-    hComponent->portDefinition[1].nBufferSize = DEFAULT_VIDEO_OUTPUT_BUFFER_SIZE;
-    hComponent->portDefinition[1].nBufferCountActual = VPU_OUTPUT_BUF_NUMBER;
-    hComponent->portDefinition[1].nBufferCountMin = VPU_OUTPUT_BUF_NUMBER;
+    strcpy(pSfOMXComponent->portDefinition[1].format.video.cMIMEType, "raw/video");
+    pSfOMXComponent->portDefinition[1].format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+    pSfOMXComponent->portDefinition[1].eDir = OMX_DirOutput;
+    pSfOMXComponent->portDefinition[1].nBufferSize = DEFAULT_VIDEO_OUTPUT_BUFFER_SIZE;
+    pSfOMXComponent->portDefinition[1].nBufferCountActual = VPU_OUTPUT_BUF_NUMBER;
+    pSfOMXComponent->portDefinition[1].nBufferCountMin = VPU_OUTPUT_BUF_NUMBER;
 
-    memset(hComponent->pBufferArray, 0, sizeof(hComponent->pBufferArray));
-    hComponent->memory_optimization = OMX_TRUE;
+    memset(pSfOMXComponent->pBufferArray, 0, sizeof(pSfOMXComponent->pBufferArray));
+    pSfOMXComponent->memory_optimization = OMX_TRUE;
 
     FunctionOut();
 EXIT:
     return ret;
 ERROR:
-    if (hComponent->pOMXComponent)
+    if (pSfOMXComponent->pOMXComponent)
     {
-        free(hComponent->pOMXComponent);
-        hComponent->pOMXComponent = NULL;
+        free(pSfOMXComponent->pOMXComponent);
+        pSfOMXComponent->pOMXComponent = NULL;
     }
-    if (hComponent->functions)
-    {
-        free(hComponent->functions);
-        hComponent->functions = NULL;
-    }
-    if (hComponent->testConfig)
-    {
-        free(hComponent->testConfig);
-        hComponent->testConfig = NULL;
-    }
-    if (hComponent->lsnCtx)
-    {
-        free(hComponent->lsnCtx);
-        hComponent->lsnCtx = NULL;
-    }
-    if (hComponent->config)
-    {
-        free(hComponent->config);
-        hComponent->config = NULL;
+    if (pSfVideoImplement)
+    {   
+        if (pSfVideoImplement->functions)
+        {
+            free(pSfVideoImplement->functions);
+            pSfVideoImplement->functions = NULL;
+        }
+        if (pSfVideoImplement->testConfig)
+        {
+            free(pSfVideoImplement->testConfig);
+            pSfVideoImplement->testConfig = NULL;
+        }
+        if (pSfVideoImplement->lsnCtx)
+        {
+            free(pSfVideoImplement->lsnCtx);
+            pSfVideoImplement->lsnCtx = NULL;
+        }
+        if (pSfVideoImplement->config)
+        {
+            free(pSfVideoImplement->config);
+            pSfVideoImplement->config = NULL;
+        }
+        free(pSfVideoImplement);
+        pSfVideoImplement = NULL;
     }
     return ret;
 }
 
 OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort)
 {
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+
     FunctionIn();
     if (nPort == 0)
     {
-        ComponentImpl *pFeederComponent = pSfOMXComponent->hSFComponentFeeder;
-        OMX_U32 inputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ);
+        ComponentImpl *pFeederComponent = pSfVideoImplement->hSFComponentFeeder;
+        OMX_U32 inputQueueCount = pSfVideoImplement->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ);
         LOG(SF_LOG_PERF, "Flush %d buffers on inputPort\r\n", inputQueueCount);
         if (inputQueueCount > 0)
         {
             PortContainerExternal *input = NULL;
-            while ((input = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pFeederComponent->srcPort)) != NULL)
+            while ((input = (PortContainerExternal*)pSfVideoImplement->functions->ComponentPortGetData(&pFeederComponent->srcPort)) != NULL)
             {
                 if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
                 {
-                    pSfOMXComponent->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
+                    pSfVideoImplement->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE, (void *)input);
                 }
                 else if (strstr(pSfOMXComponent->componentName, "sf.enc") != NULL)
                 {
-                    pSfOMXComponent->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
+                    pSfVideoImplement->functions->ComponentNotifyListeners(pFeederComponent, COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE, (void *)input);
                 }
             }
         }
     }
     else if (nPort == 1)
     {
-        ComponentImpl *pRendererComponent = pSfOMXComponent->hSFComponentRender;
-        OMX_U32 OutputQueueCount = pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ);
+        ComponentImpl *pRendererComponent = pSfVideoImplement->hSFComponentRender;
+        OMX_U32 OutputQueueCount = pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ);
         LOG(SF_LOG_PERF, "Flush %d buffers on outputPort\r\n", OutputQueueCount);
         if (OutputQueueCount > 0)
         {
             PortContainerExternal *output = NULL;
-            while ((output = (PortContainerExternal*)pSfOMXComponent->functions->ComponentPortGetData(&pRendererComponent->sinkPort)) != NULL)
+            while ((output = (PortContainerExternal*)pSfVideoImplement->functions->ComponentPortGetData(&pRendererComponent->sinkPort)) != NULL)
             {
                 output->nFlags = 0x1;
                 output->nFilledLen = 0;
                 if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
                 {
-                    pSfOMXComponent->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
+                    pSfVideoImplement->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
                 }
                 else if (strstr(pSfOMXComponent->componentName, "sf.enc") != NULL)
                 {
-                    pSfOMXComponent->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
+                    pSfVideoImplement->functions->ComponentNotifyListeners(pRendererComponent, COMPONENT_EVENT_ENC_FILL_BUFFER_DONE, (void *)output);
                 }
             }
         }
     }
     FunctionOut();
+}
+
+static void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle)
+{
+    FunctionIn();
+    funcs->ComponentCreate = dlsym(sohandle, "ComponentCreate");
+    funcs->ComponentExecute = dlsym(sohandle, "ComponentExecute");
+    funcs->ComponentGetParameter = dlsym(sohandle, "ComponentGetParameter");
+    funcs->ComponentGetState = dlsym(sohandle, "ComponentGetState");
+    funcs->ComponentNotifyListeners = dlsym(sohandle, "ComponentNotifyListeners");
+    funcs->ComponentPortCreate = dlsym(sohandle, "ComponentPortCreate");
+    funcs->ComponentPortDestroy = dlsym(sohandle, "ComponentPortDestroy");
+    funcs->ComponentPortFlush = dlsym(sohandle, "ComponentPortFlush");
+    funcs->ComponentPortGetData = dlsym(sohandle, "ComponentPortGetData");
+    funcs->ComponentPortPeekData = dlsym(sohandle, "ComponentPortPeekData");
+    funcs->ComponentPortSetData = dlsym(sohandle, "ComponentPortSetData");
+    funcs->ComponentPortWaitReadyStatus = dlsym(sohandle, "ComponentPortWaitReadyStatus");
+    funcs->ComponentRelease = dlsym(sohandle, "ComponentRelease");
+    funcs->ComponentSetParameter = dlsym(sohandle, "ComponentSetParameter");
+    funcs->ComponentStop = dlsym(sohandle, "ComponentStop");
+    funcs->ComponentSetupTunnel = dlsym(sohandle, "ComponentSetupTunnel");
+    funcs->ComponentWait = dlsym(sohandle, "ComponentWait");
+    funcs->WaitBeforeComponentPortGetData = dlsym(sohandle, "WaitBeforeComponentPortGetData");
+    funcs->ComponentChangeState = dlsym(sohandle, "ComponentChangeState");
+    funcs->ComponentDestroy = dlsym(sohandle, "ComponentDestroy");
+    funcs->ComponentRegisterListener = dlsym(sohandle, "ComponentRegisterListener");
+    funcs->ComponentPortHasInputData = dlsym(sohandle, "ComponentPortHasInputData");
+    funcs->ComponentPortGetSize = dlsym(sohandle, "ComponentPortGetSize");
+    funcs->ComponentParamReturnTest = dlsym(sohandle, "ComponentParamReturnTest");
+    //Listener
+    funcs->SetupDecListenerContext = dlsym(sohandle, "SetupDecListenerContext");
+    funcs->SetupEncListenerContext = dlsym(sohandle, "SetupEncListenerContext");
+    funcs->ClearDecListenerContext = dlsym(sohandle, "ClearDecListenerContext");
+    funcs->HandleDecCompleteSeqEvent = dlsym(sohandle, "HandleDecCompleteSeqEvent");
+    funcs->HandleDecRegisterFbEvent = dlsym(sohandle, "HandleDecRegisterFbEvent");
+    funcs->HandleDecGetOutputEvent = dlsym(sohandle, "HandleDecGetOutputEvent");
+    funcs->HandleDecCloseEvent = dlsym(sohandle, "HandleDecCloseEvent");
+    funcs->ClearEncListenerContext = dlsym(sohandle, "ClearEncListenerContext");
+    funcs->HandleEncFullEvent = dlsym(sohandle, "HandleEncFullEvent");
+    funcs->HandleEncGetOutputEvent = dlsym(sohandle, "HandleEncGetOutputEvent");
+    funcs->HandleEncCompleteSeqEvent = dlsym(sohandle, "HandleEncCompleteSeqEvent");
+    funcs->HandleEncGetEncCloseEvent = dlsym(sohandle, "HandleEncGetEncCloseEvent");
+    funcs->EncoderListener = dlsym(sohandle, "EncoderListener");
+    funcs->DecoderListener = dlsym(sohandle, "DecoderListener");
+    // Helper
+    funcs->SetDefaultEncTestConfig = dlsym(sohandle, "SetDefaultEncTestConfig");
+    funcs->SetDefaultDecTestConfig = dlsym(sohandle, "SetDefaultDecTestConfig");
+    funcs->LoadFirmware = dlsym(sohandle, "LoadFirmware");
+    funcs->SetupEncoderOpenParam = dlsym(sohandle, "SetupEncoderOpenParam");
+    funcs->SetUpDecoderOpenParam = dlsym(sohandle, "SetUpDecoderOpenParam");
+    // VPU
+    funcs->VPU_GetProductId = dlsym(sohandle, "VPU_GetProductId");
+    funcs->Queue_Enqueue = dlsym(sohandle, "Queue_Enqueue");
+    funcs->Queue_Get_Cnt = dlsym(sohandle, "Queue_Get_Cnt");
+    funcs->VPU_DecClrDispFlag = dlsym(sohandle, "VPU_DecClrDispFlag");
+    funcs->VPU_DecGetFrameBuffer = dlsym(sohandle, "VPU_DecGetFrameBuffer");
+    funcs->Render_DecClrDispFlag = dlsym(sohandle, "Render_DecClrDispFlag");
+    // VPU Log
+    funcs->InitLog = dlsym(sohandle, "InitLog");
+    funcs->DeInitLog = dlsym(sohandle, "DeInitLog");
+    funcs->SetMaxLogLevel = dlsym(sohandle, "SetMaxLogLevel");
+    funcs->GetMaxLogLevel = dlsym(sohandle, "GetMaxLogLevel");
+
+    //Renderer
+    funcs->AllocateFrameBuffer2 = dlsym(sohandle, "AllocateFrameBuffer2");
+    funcs->AttachDMABuffer = dlsym(sohandle, "AttachDMABuffer");
+    funcs->SetRenderTotalBufferNumber = dlsym(sohandle, "SetRenderTotalBufferNumber");
+    funcs->WaitForExecoderReady = dlsym(sohandle, "WaitForExecoderReady");
+    FunctionOut();
+}
+
+SF_OMX_COMPONENT *GetSFOMXComponrntByComponent(Component *pComponent)
+{
+    SF_OMX_COMPONENT *pSfOMXComponent = NULL;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = NULL;
+    int size = GetNumberOfComponent();
+
+    FunctionIn();
+    for (int i = 0; i < size; i++)
+    {
+        pSfOMXComponent = sf_omx_component_list[i];
+        if (pSfOMXComponent == NULL)
+        {
+            continue;
+        }
+        pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+        if (pSfVideoImplement == NULL)
+        {
+            continue;
+        }
+        if (pSfVideoImplement->hSFComponentExecoder == pComponent || pSfVideoImplement->hSFComponentFeeder == pComponent || pSfVideoImplement->hSFComponentRender == pComponent)
+        {
+            break;
+        }
+    }
+EXIT:
+    if (pSfOMXComponent == NULL)
+    {
+        LOG(SF_LOG_ERR, "Could not get SfOMXComponent buy %p\r\n", pComponent);
+    }
+    FunctionOut();
+
+    return pSfOMXComponent;
 }
