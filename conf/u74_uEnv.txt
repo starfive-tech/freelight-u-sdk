@@ -26,13 +26,13 @@ irdsize=06400000
 
 #Use fit image, but don't call fdt move  (TODO: understand later)
 #setupfdt1=fdt addr ${newfdt}; fdt resize; fdt chosen
-setupfdt1=fdt addr ${fdtaddr}
+setupfdt1=fdt addr ${fdtaddr}; fdt resize;
 
 setupird=setexpr irdend ${irdaddr} + ${irdsize}; fdt set /chosen linux,initrd-start <0x0 0x${irdaddr}>; fdt set /chosen linux,initrd-end <0x0 0x${irdend}>
 
 #setupfdt2=fdt set /chosen bootargs ${bootargs}; fdt print /chosen
 #setupfdt2=fdt print /chosen; fdt set /chosen bootargs "${bootargs}"; fdt set /firmware uboot,ver ${ver}; fdt print /chosen
-setupfdt2=fdt print /chosen; fdt set /chosen bootargs "${bootargs}"; fdt print /chosen
+setupfdt2=fdt set /chosen bootargs "${bootargs}"
 
 bootfile=vmlinuz
 fdt_addr_r=0x88000000
