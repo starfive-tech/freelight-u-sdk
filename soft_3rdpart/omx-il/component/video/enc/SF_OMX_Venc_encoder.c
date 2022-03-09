@@ -539,13 +539,17 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             LOG(SF_LOG_INFO, "Set eColorFormat to %d\r\n", eColorFormat);
             switch (eColorFormat)
             {
-            case OMX_COLOR_FormatYUV420Planar:
+            case OMX_COLOR_FormatYUV420Planar: //I420
                 pTestEncConfig->cbcrInterleave = FALSE;
                 pTestEncConfig->nv21 = FALSE;
                 break;
-            case OMX_COLOR_FormatYUV420SemiPlanar:
-                pTestEncConfig->cbcrInterleave = OMX_TRUE;
-                pTestEncConfig->nv21 = OMX_FALSE;
+            case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
+                pTestEncConfig->cbcrInterleave = TRUE;
+                pTestEncConfig->nv21 = FALSE;
+                break;
+            case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
+                pTestEncConfig->cbcrInterleave = TRUE;
+                pTestEncConfig->nv21 = TRUE;
                 break;
             default:
                 break;

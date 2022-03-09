@@ -97,8 +97,8 @@ static OMX_ERRORTYPE event_handler(
 
 static void help()
 {
-    printf("./video_enc_test -i <input file> -o <output file> -w <width> -h <height>"
-           "-c <yuv/nv12> -s <h264/h265> -b <bitrate>\r\n");
+    printf("./video_enc_test -i <input file> -o <output file> -w <width> -h <height> "
+           "-c <yuv/nv12/nv21> -s <h264/h265> -b <bitrate>\r\n");
 }
 
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
@@ -207,7 +207,7 @@ int main(int argc, char *argv)
         {"height", required_argument, NULL, 'h'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:f:s:w:h:b:";
+    OMX_S8 *shortOpt = "i:o:f:s:w:h:b:c:";
     OMX_U32 c;
     OMX_S32 l;
 
@@ -313,6 +313,23 @@ int main(int argc, char *argv)
     OMX_GetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
     pInputPortDefinition.format.video.nFrameWidth = width;
     pInputPortDefinition.format.video.nFrameHeight = height;
+    if (strstr(encodeTestContext->sInputFormat, "i420") != NULL)
+    {
+        pInputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
+    }
+    else if (strstr(encodeTestContext->sInputFormat, "nv12") != NULL)
+    {
+        pInputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+    }
+    else if (strstr(encodeTestContext->sInputFormat, "nv21") != NULL)
+    {
+        pInputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedSemiPlanar;
+    }
+    else
+    {
+        printf("unsupported color format: %s\r\n", encodeTestContext->sInputFormat);
+        goto end;
+    }
     OMX_SetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
     OMX_GetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
 
@@ -323,7 +340,6 @@ int main(int argc, char *argv)
     pOutputPortDefinition.format.video.nFrameWidth = width;
     pOutputPortDefinition.format.video.nFrameHeight = height;
     pOutputPortDefinition.format.video.nBitrate = encodeTestContext->nBitrate;
-    //TODO: input format
     OMX_SetParameter(hComponentEncoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
 
     /*Alloc input buffer*/
