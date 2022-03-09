@@ -79,6 +79,11 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     {
     case COMPONENT_EVENT_DEC_EMPTY_BUFFER_DONE:
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
+        if (pOMXBuffer == NULL)
+        {
+            LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
+            return;
+        }
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
         break;
     case COMPONENT_EVENT_DEC_FILL_BUFFER_DONE:
@@ -87,7 +92,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
         if (pOMXBuffer == NULL)
         {
-            LOG(SF_LOG_ERR, "Could not find omx buffer by address\r\n");
+            LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
             return;
         }
         gettimeofday(&tv, NULL);
