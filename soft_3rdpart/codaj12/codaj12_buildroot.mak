@@ -141,7 +141,7 @@ CREATE_DIR:
 	-mkdir -p $(OBJDIR)
 
 obj/%.o: %.c $(MAKEFILE)
-	$(CC) -g -fPIC -shared $(CFLAGS) -Wall -Werror -c $< -o $@ -MD -MF $(@:.o=.dep)
+	$(CC) -fPIC -shared $(CFLAGS) -Wall -Werror -c $< -o $@ -MD -MF $(@:.o=.dep)
 
 lint:
 	"$(LINT_HOME)/flint" -i"$(LINT_HOME)" $(DEFINES) $(INCLUDES) $(VPATH2) linux_std.lnt $(HAPS_RULE) $(NONOS_RULE)  $(SOURCES_COMMON)
