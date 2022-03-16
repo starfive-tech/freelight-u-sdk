@@ -38,6 +38,7 @@ typedef struct DecodeTestContext
     OMX_HANDLETYPE hComponentDecoder;
     char sOutputFilePath[64];
     char sInputFilePath[64];
+    char sOutputFormat[64];
     OMX_BUFFERHEADERTYPE *pInputBufferArray[64];
     OMX_BUFFERHEADERTYPE *pOutputBufferArray[64];
     AVFormatContext *avContext;
@@ -199,10 +200,11 @@ int main(int argc, char *argv)
     decodeTestContext->msgid = msgid;
     struct option longOpt[] = {
         {"output", required_argument, NULL, 'o'},
-        {"input", required_argument, NULL, 'f'},
+        {"input", required_argument, NULL, 'i'},
+        {"format", required_argument, NULL, 'f'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:";
+    OMX_S8 *shortOpt = "i:o:f:";
     OMX_U32 c;
     OMX_S32 l;
 
@@ -231,6 +233,10 @@ int main(int argc, char *argv)
         case 'o':
             printf("output: %s\r\n", optarg);
             memcpy(decodeTestContext->sOutputFilePath, optarg, strlen(optarg));
+            break;
+        case 'f':
+            printf("format: %s\r\n", optarg);
+            memcpy(decodeTestContext->sOutputFormat, optarg, strlen(optarg));
             break;
         case 'h':
         default:
@@ -315,6 +321,32 @@ int main(int argc, char *argv)
         return 0;
     }
     decodeTestContext->hComponentDecoder = hComponentDecoder;
+
+    OMX_PARAM_PORTDEFINITIONTYPE pOutputPortDefinition;
+    OMX_INIT_STRUCTURE(pOutputPortDefinition);
+    pOutputPortDefinition.nPortIndex = 1;
+    OMX_GetParameter(decodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
+    pOutputPortDefinition.format.video.nFrameWidth = codecParameters->width;
+    pOutputPortDefinition.format.video.nFrameHeight = codecParameters->height;
+    if (strstr(decodeTestContext->sOutputFormat, "nv12") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "nv21") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedSemiPlanar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "i420") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
+    }
+    else
+    {
+        printf("Unsupported color format!\r\n");
+        goto end;
+    }
+    OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
+
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
     OMX_PARAM_PORTDEFINITIONTYPE pInputPortDefinition;
