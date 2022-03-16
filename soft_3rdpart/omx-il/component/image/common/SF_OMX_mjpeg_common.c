@@ -73,6 +73,20 @@ OMX_ERRORTYPE InitMjpegStructorCommon(SF_OMX_COMPONENT *pSfOMXComponent)
     memset(pSfCodaj12Implement->functions, 0, sizeof(SF_CODAJ12_FUNCTIONS));
     sf_get_component_functions(pSfCodaj12Implement->functions, pSfOMXComponent->soHandle);
 
+    // Init JPU log
+    if (pSfCodaj12Implement->functions->SetMaxLogLevel)
+    {
+        strDebugLevel = getenv("JPU_DEBUG");
+        if (strDebugLevel)
+        {
+            debugLevel = atoi(strDebugLevel);
+            if (debugLevel >=0)
+            {
+                pSfCodaj12Implement->functions->SetMaxLogLevel(debugLevel);
+            }
+        }
+    }
+
     if (strstr(pSfOMXComponent->componentName, "sf.dec") != NULL)
     {
         pSfCodaj12Implement->config = malloc(sizeof(DecConfigParam));
@@ -202,6 +216,7 @@ static void sf_get_component_functions(SF_CODAJ12_FUNCTIONS *funcs, OMX_PTR *soh
     funcs->GetFrameBuffer = dlsym(sohandle, "GetFrameBuffer");
     funcs->GetFrameBufferCount = dlsym(sohandle, "GetFrameBufferCount");
     funcs->UpdateFrameBuffers = dlsym(sohandle, "UpdateFrameBuffers");
+    funcs->SetMaxLogLevel = dlsym(sohandle, "SetMaxLogLevel");
     FunctionOut();
 }
 

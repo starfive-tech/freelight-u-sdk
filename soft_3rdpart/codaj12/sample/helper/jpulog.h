@@ -33,7 +33,16 @@
 
 
 
-enum {NONE=0, INFO, WARN, ERR, TRACE, MAX_LOG_LEVEL};
+enum
+{
+    ERR=0,
+    WARN,
+    TRACE,
+    INFO,
+    DEBUG,
+    MAX_LOG_LEVEL
+};
+
 enum
 {
     LOG_HAS_DAY_NAME   =    1, /**< Include day name [default: no] 	      */

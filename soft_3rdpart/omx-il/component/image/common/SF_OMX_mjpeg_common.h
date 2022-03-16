@@ -77,6 +77,9 @@ typedef struct _SF_CODAJ12_FUNCTIONS
     Uint32 (*GetFrameBufferCount)(int instIdx);
 
     BOOL (*UpdateFrameBuffers)(Uint32 instIdx, Uint32 num, FRAME_BUF *frameBuf);
+
+    // JPU Log
+    void (*SetMaxLogLevel)(int level);
 } SF_CODAJ12_FUNCTIONS;
 
 typedef struct _THREAD_HANDLE_TYPE {
