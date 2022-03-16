@@ -284,6 +284,12 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
         case 2:
             portFormat->eColorFormat = OMX_COLOR_FormatYUV444Interleaved;
             break;
+        case 3:
+            portFormat->eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar; //NV12
+            break;
+        case 4:
+            portFormat->eColorFormat = OMX_COLOR_FormatYUV420PackedSemiPlanar; //NV21
+            break;
         default:
             if (index > 0)
             {
@@ -342,6 +348,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             (OMX_PARAM_PORTDEFINITIONTYPE *)ComponentParameterStructure;
         OMX_PARAM_PORTDEFINITIONTYPE *pInputPort = &pSfOMXComponent->portDefinition[0];
         OMX_PARAM_PORTDEFINITIONTYPE *pOutputPort = &pSfOMXComponent->portDefinition[1];
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
 
         OMX_U32 portIndex = pPortDefinition->nPortIndex;
         OMX_U32 width = pPortDefinition->format.image.nFrameWidth;
@@ -397,6 +404,16 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                     case OMX_COLOR_FormatYUV420Planar:
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
+                    case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
+                        decConfig->cbcrInterleave = CBCR_INTERLEAVE;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pOutputPort->nBufferSize = (width * height * 3) / 2;
+                        break;
+                    case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
+                        decConfig->cbcrInterleave = CRCB_INTERLEAVE;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pOutputPort->nBufferSize = (width * height * 3) / 2;
+                        break;
                     case OMX_COLOR_FormatYUV422Planar:
                         pOutputPort->nBufferSize = width * height * 2;
                         break;
@@ -420,10 +437,21 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         OMX_VIDEO_PARAM_PORTFORMATTYPE *portFormat = (OMX_VIDEO_PARAM_PORTFORMATTYPE *)ComponentParameterStructure;
         OMX_U32 nPortIndex = portFormat->nPortIndex;
         OMX_PARAM_PORTDEFINITIONTYPE *pPort = &pSfOMXComponent->portDefinition[nPortIndex];
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
         LOG(SF_LOG_DEBUG, "Set video format to port %d color %d\r\n", portFormat->nPortIndex, portFormat->eColorFormat);
         switch (portFormat->eColorFormat)
         {
         case OMX_COLOR_FormatYUV420Planar:
+            pSfMjpegImplement->frameFormat = FORMAT_420;
+            pPort->format.video.eColorFormat = portFormat->eColorFormat;
+        case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
+            decConfig->cbcrInterleave = CBCR_INTERLEAVE;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
+            pSfMjpegImplement->frameFormat = FORMAT_420;
+            pPort->format.video.eColorFormat = portFormat->eColorFormat;
+        case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
+            decConfig->cbcrInterleave = CRCB_INTERLEAVE;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
