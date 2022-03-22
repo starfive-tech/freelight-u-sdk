@@ -75,7 +75,9 @@ typedef struct _SF_CODAJ12_FUNCTIONS
     void (*FreeFrameBuffer)(int instIdx);
     FRAME_BUF *(*GetFrameBuffer)(int instIdx, int idx);
     Uint32 (*GetFrameBufferCount)(int instIdx);
-
+    BOOL (*AttachOneFrameBuffer)(Uint32 instIdx, FrameFormat subsample, CbCrInterLeave cbcrIntlv, PackedFormat packed,
+                         Uint32 rotation, BOOL scalerOn, Uint32 width, Uint32 height, Uint32 bitDepth,
+                         void *virtAddress, Uint32 size, Uint32 *bufferIndex);
     BOOL (*UpdateFrameBuffers)(Uint32 instIdx, Uint32 num, FRAME_BUF *frameBuf);
 
     // JPU Log
@@ -103,6 +105,7 @@ typedef struct _SF_CODAJ12_IMPLEMEMT
     FRAME_BUF frame[NUM_FRAME_BUF];
     OMX_S32 sInputMessageQueue;
     OMX_S32 sOutputMessageQueue;
+    OMX_S32 sBufferDoneQueue;
     OMX_HANDLETYPE pProcessThread;
     OMX_BOOL bThreadRunning;
     OMX_STATETYPE currentState;

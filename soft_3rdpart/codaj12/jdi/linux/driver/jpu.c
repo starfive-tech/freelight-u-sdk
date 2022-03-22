@@ -382,6 +382,70 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
             DPRINTK("[JPUDRV][-]JDI_IOCTL_ALLOCATE_PHYSICAL_MEMORY\n");
         }
         break;
+     case JDI_IOCTL_GET_PHYSICAL_MEMORY:
+        {
+            jpudrv_buffer_pool_t *jbp;
+
+            DPRINTK("[JPUDRV][+]JDI_IOCTL_GET_PHYSICAL_MEMORY\n");
+            if ((ret = down_interruptible(&s_jpu_sem)) == 0) {
+                jbp = kzalloc(sizeof(jpudrv_buffer_pool_t), GFP_KERNEL);
+                if (!jbp) {
+                    up(&s_jpu_sem);
+                    return -ENOMEM;
+                }
+
+                ret = copy_from_user(&(jbp->jb), (jpudrv_buffer_t *)arg, sizeof(jpudrv_buffer_t));
+                if (ret)
+                {
+                    kfree(jbp);
+                    up(&s_jpu_sem);
+                    return -EFAULT;
+                }
+
+                void *user_address = (void *)jbp->jb.virt_addr;
+                struct task_struct *my_struct = get_current();
+                struct mm_struct *mm = my_struct->mm;
+                unsigned long address = (unsigned long)user_address;
+                pgd_t *pgd = pgd_offset(mm, address);
+
+                if (!pgd_none(*pgd) && !pgd_bad(*pgd)) {
+                    p4d_t *p4d = p4d_offset(pgd, address);
+                    pud_t *pud = pud_offset(p4d, address);
+                    if (!pud_none(*pud) && !pud_bad(*pud)) {
+                        pmd_t *pmd = pmd_offset(pud, address);
+                        if (!pmd_none(*pmd) && !pmd_bad(*pmd)) {
+                            pte_t *pte = pte_offset_map(pmd, address);
+                            if (!pte_none(*pte)) {
+                                struct page *pg = pte_page(*pte);
+                                unsigned long phys = page_to_phys(pg);
+                                unsigned long virt = (unsigned long)phys_to_virt(phys);
+                                printk("phy address = %lx, virt = %lx\r\n", phys, virt);
+                                jbp->jb.phys_addr = phys;
+                                jbp->jb.base = virt;
+                            }
+                            pte_unmap(pte);
+                        }
+                    }
+                }
+                ret = copy_to_user((void __user *)arg, &(jbp->jb), sizeof(jpudrv_buffer_t));
+                if (ret)
+                {
+                    kfree(jbp);
+                    ret = -EFAULT;
+                    up(&s_jpu_sem);
+                    break;
+                }
+
+                jbp->filp = filp;
+                spin_lock(&s_jpu_lock);
+                list_add(&jbp->list, &s_jbp_head);
+                spin_unlock(&s_jpu_lock);
+
+                up(&s_jpu_sem);
+            }
+            DPRINTK("[JPUDRV][-]JDI_IOCTL_GET_PHYSICAL_MEMORY\n");
+        }
+        break;
     case JDI_IOCTL_FREE_PHYSICALMEMORY:
         {
             jpudrv_buffer_pool_t *jbp, *n;

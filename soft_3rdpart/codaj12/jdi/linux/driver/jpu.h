@@ -20,6 +20,7 @@
 #define JDI_IOCTL_CLOSE_INSTANCE                    _IO(JDI_IOCTL_MAGIC, 9)
 #define JDI_IOCTL_GET_INSTANCE_NUM                  _IO(JDI_IOCTL_MAGIC, 10)
 #define JDI_IOCTL_FLUSH_DCACHE                 		_IO(JDI_IOCTL_MAGIC, 11)
+#define JDI_IOCTL_GET_PHYSICAL_MEMORY               _IO(JDI_IOCTL_MAGIC, 12)
 
 #define MEM2SYS(addr) ((addr) > 0x80000000 && (addr) < 0x87FFFFFFF ? ((addr)+0xF80000000):(addr))
 

@@ -7,6 +7,7 @@
 #include <string.h>
 #include "SF_OMX_mjpeg_common.h"
 #include "SF_OMX_Core.h"
+#include <sys/prctl.h>
 
 extern OMX_TICKS gInitTimeStamp;
 #define TEMP_DEBUG 1
@@ -39,20 +40,24 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
 
     LOG(SF_LOG_DEBUG, "nFilledLen = %d, nFlags = %d, pBuffer = %p\r\n", pBuffer->nFilledLen, pBuffer->nFlags, pBuffer->pBuffer);
 
-    if (pBuffer->nFilledLen == 0)
+    if (pBuffer->nFilledLen == 0 || pBuffer->nFlags & 0x1 == 0x1)
     {
-        bSendNULL = OMX_TRUE;
-    }
-    else if (pBuffer->nFlags & 0x1 == 0x1)
-    {
-        bSendMessage = OMX_TRUE;
         bSendNULL = OMX_TRUE;
     }
     else
     {
         bSendNULL = OMX_FALSE;
+    }
+
+    if (pBuffer->pBuffer == NULL)
+    {
+        bSendMessage = OMX_FALSE;
+    }
+    else
+    {
         bSendMessage = OMX_TRUE;
     }
+
     Message data;
     data.msg_type = 1;
     data.msg_flag = 0;
@@ -130,6 +135,38 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_IN OMX_U8 *pBuffer)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
+    OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
+    SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_CODAJ12_IMPLEMEMT *pSfCodaj12Implement = pSfOMXComponent->componentImpl;
+    FunctionIn();
+
+    if (hComponent == NULL)
+    {
+        ret = OMX_ErrorBadParameter;
+        goto EXIT;
+    }
+    if (AttachOutputBuffer(pSfOMXComponent, pBuffer, nSizeBytes) == OMX_FALSE)
+    {
+        LOG(SF_LOG_ERR, "Failed to attach dma buffer\r\n");
+        return OMX_ErrorInsufficientResources;
+    }
+    OMX_BUFFERHEADERTYPE *temp_bufferHeader = (OMX_BUFFERHEADERTYPE *)malloc(sizeof(OMX_BUFFERHEADERTYPE));
+    if (temp_bufferHeader == NULL)
+    {
+        LOG(SF_LOG_ERR, "malloc fail\r\n");
+        return OMX_ErrorInsufficientResources;
+    }
+    memset(temp_bufferHeader, 0, sizeof(OMX_BUFFERHEADERTYPE));
+    temp_bufferHeader->nAllocLen = nSizeBytes;
+    temp_bufferHeader->pAppPrivate = pAppPrivate;
+    temp_bufferHeader->pBuffer = pBuffer;
+    *ppBufferHdr = temp_bufferHeader;
+    if (nPortIndex == 1)
+    {
+        temp_bufferHeader->pOutputPortPrivate = (OMX_PTR)nOutBufIndex;
+        nOutBufIndex ++;
+    }
+    LOG(SF_LOG_DEBUG, "pBuffer address = %p, nOutBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (int)temp_bufferHeader->pOutputPortPrivate);
 EXIT:
     FunctionOut();
 
@@ -259,6 +296,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
         LOG(SF_LOG_DEBUG, "Get parameter port %X\r\n",portIndex);
         LOG_APPEND(SF_LOG_DEBUG, "width = %d, height = %d\r\n", pSrcDefinition->format.video.nFrameWidth, pSrcDefinition->format.video.nFrameHeight);
         LOG_APPEND(SF_LOG_DEBUG, "eColorFormat = %d\r\n", pSrcDefinition->format.video.eColorFormat);
+        LOG_APPEND(SF_LOG_DEBUG, "xFramerate = %d\r\n", pSrcDefinition->format.video.xFramerate);
         LOG_APPEND(SF_LOG_DEBUG, "bufferSize = %d\r\n",pSrcDefinition->nBufferSize);
         LOG_APPEND(SF_LOG_DEBUG, "Buffer count = %d\r\n", pSrcDefinition->nBufferCountActual);
                          
@@ -351,18 +389,19 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         DecConfigParam *decConfig = pSfMjpegImplement->config;
 
         OMX_U32 portIndex = pPortDefinition->nPortIndex;
-        OMX_U32 width = pPortDefinition->format.image.nFrameWidth;
-        OMX_U32 height = pPortDefinition->format.image.nFrameHeight;
+        OMX_U32 width = pPortDefinition->format.video.nFrameWidth;
+        OMX_U32 height = pPortDefinition->format.video.nFrameHeight;
         LOG(SF_LOG_INFO, "Set parameter on port %d\r\n", pPortDefinition->nPortIndex);
         LOG_APPEND(SF_LOG_DEBUG, "width = %d, height = %d\r\n",width, height);
         LOG_APPEND(SF_LOG_DEBUG, "eColorFormat = %d\r\n", pPortDefinition->format.video.eColorFormat);
+        LOG_APPEND(SF_LOG_DEBUG, "xFramerate = %d\r\n", pPortDefinition->format.video.xFramerate);
         LOG_APPEND(SF_LOG_DEBUG, "bufferSize = %d\r\n",pPortDefinition->nBufferSize);
         LOG_APPEND(SF_LOG_DEBUG, "Buffer count = %d\r\n", pPortDefinition->nBufferCountActual);
         if (portIndex == (OMX_U32)OMX_INPUT_PORT_INDEX)
         {
             memcpy(&pSfOMXComponent->portDefinition[portIndex], pPortDefinition, pPortDefinition->nSize);
-            pInputPort->format.image.nStride = width;
-            pInputPort->format.image.nSliceHeight = height;
+            pInputPort->format.video.nStride = width;
+            pInputPort->format.video.nSliceHeight = height;
             pInputPort->nBufferSize = width * height * 2;
         }
         else if (portIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
@@ -374,20 +413,20 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             */
             if (width <= 1)
             {
-                width = pInputPort->format.image.nFrameWidth;
+                width = pInputPort->format.video.nFrameWidth;
             }
             if (height <= 1)
             {
-                height = pInputPort->format.image.nFrameHeight;
+                height = pInputPort->format.video.nFrameHeight;
             }
             if (width > 0 && height > 0)
             {
-                int scalew = pInputPort->format.image.nFrameWidth / width;
-                int scaleh = pInputPort->format.image.nFrameHeight / height;
+                int scalew = pInputPort->format.video.nFrameWidth / width;
+                int scaleh = pInputPort->format.video.nFrameHeight / height;
                 if (scalew > 8 || scaleh > 8 || scalew < 1 || scaleh < 1)
                 {
-                    int nInputWidth = pInputPort->format.image.nFrameWidth;
-                    int nInputHeight = pInputPort->format.image.nFrameHeight;
+                    int nInputWidth = pInputPort->format.video.nFrameWidth;
+                    int nInputHeight = pInputPort->format.video.nFrameHeight;
                     LOG(SF_LOG_WARN, "Scaling should be 1 to 1/8 (down-scaling only)! Use input parameter. "
                                      "OutPut[%d, %d]. Input[%d, %d]\r\n",
                         width, height, nInputWidth, nInputHeight);
@@ -395,11 +434,11 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                     height = nInputHeight;
                 }
 
-                pOutputPort->format.image.nFrameWidth = width;
-                pOutputPort->format.image.nFrameHeight = height;
-                pOutputPort->format.image.nStride = width;
-                pOutputPort->format.image.nSliceHeight = height;
-                switch (pOutputPort->format.image.eColorFormat)
+                pOutputPort->format.video.nFrameWidth = width;
+                pOutputPort->format.video.nFrameHeight = height;
+                pOutputPort->format.video.nStride = width;
+                pOutputPort->format.video.nSliceHeight = height;
+                switch (pOutputPort->format.video.eColorFormat)
                 {
                     case OMX_COLOR_FormatYUV420Planar:
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
@@ -564,19 +603,6 @@ static OMX_ERRORTYPE InitDecoder(SF_OMX_COMPONENT *pSfOMXComponent)
     JpgDecOpenParam *decOP = &pSfCodaj12Implement->decOP;
     JpgDecHandle handle = pSfCodaj12Implement->handle;
 
-    // pSfCodaj12Implement->sInputMessageQueue = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
-    // if (pSfCodaj12Implement->sInputMessageQueue < 0)
-    // {
-    //     LOG(SF_LOG_ERR, "get ipc_id error");
-    //     return;
-    // }
-    // pSfCodaj12Implement->sOutputMessageQueue = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
-    // if (pSfCodaj12Implement->sOutputMessageQueue < 0)
-    // {
-    //     LOG(SF_LOG_ERR, "get ipc_id error");
-    //     return;
-    // }
-
     ret = pSfCodaj12Implement->functions->JPU_Init();
     if (ret != JPG_RET_SUCCESS && ret != JPG_RET_CALLED_BEFORE)
     {
@@ -604,6 +630,116 @@ ERR_DEC_INIT:
     return OMX_ErrorHardware;
 }
 
+static OMX_BOOL AdjustFrame(OMX_BUFFERHEADERTYPE* pBuffer, OMX_U32 nSrcWidth, OMX_U32 nSrcHeight,
+                            OMX_U32 nDestWidth, OMX_U32 nDestHeight)
+{
+    OMX_U32 nDeltaWidth = 0;
+    OMX_U32 nDeltaHeight = 0;
+
+    FunctionIn();
+
+    nDeltaWidth = nSrcWidth - nDestWidth;
+    nDeltaHeight = nSrcHeight - nDestHeight;
+
+    if (nDeltaWidth == 0 && nDeltaHeight == 0)
+    {
+        return OMX_TRUE;
+    }
+
+    if (nDeltaWidth != 0)
+    {
+        LOG(SF_LOG_ERR, "nSrcWidth != nDestWidth not supported\r\n");
+        return OMX_FALSE;
+    }
+
+    OMX_U8 *pDestCbCrStart = pBuffer->pBuffer + nDestHeight * nDestWidth;
+    OMX_U8 *pSrcCbCrStart = pBuffer->pBuffer + nDestHeight * nDestWidth + nDeltaHeight * nDestWidth;
+    OMX_U32 pCbCrSize =  nDestWidth * nDestHeight / 2;
+    LOG(SF_LOG_DEBUG, "pBuffer = %p, pDestCbCrStart = %p, pSrcCbCrStart = %p, pCbCrSize = %d\r\n",
+        pBuffer->pBuffer, pDestCbCrStart, pSrcCbCrStart, pCbCrSize);
+    memmove(pDestCbCrStart, pSrcCbCrStart, pCbCrSize);
+    pBuffer->nFilledLen = nDestHeight * nDestWidth * 3 / 2;
+
+    FunctionOut();
+
+    return OMX_TRUE;
+}
+
+static OMX_BOOL FillBufferDone(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer)
+{
+    struct timeval tv;
+    static OMX_U32 dec_cnt = 0;
+    OMX_U32 fps = 0;
+    OMX_U64 diff_time = 0; // ms
+    static struct timeval tv_old = {0};
+
+    FunctionIn();
+
+    gettimeofday(&tv, NULL);
+    if (gInitTimeStamp == 0)
+    {
+        gInitTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec;
+    }
+    pBuffer->nTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec - gInitTimeStamp;
+
+    if (dec_cnt == 0) {
+        tv_old = tv;
+    }
+    if (dec_cnt++ >= 50) {
+        diff_time = (tv.tv_sec - tv_old.tv_sec) * 1000 + (tv.tv_usec - tv_old.tv_usec) / 1000;
+        fps = 1000  * (dec_cnt - 1) / diff_time;
+        dec_cnt = 0;
+        LOG(SF_LOG_WARN, "Decoding fps: %d \r\n", fps);
+    }
+
+    LOG(SF_LOG_PERF, "OMX finish one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
+            pBuffer->pBuffer, pBuffer->nFilledLen, pBuffer->nTimeStamp, pBuffer->nFlags);
+    // Following comment store data loal
+    // {
+    //     FILE *fb = fopen("./out.bcp", "ab+");
+    //     LOG(SF_LOG_INFO, "%p %d\r\n", pBuffer->pBuffer, pBuffer->nFilledLen);
+    //     fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
+    //     fclose(fb);
+    // }
+    pSfOMXComponent->callbacks->FillBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pBuffer);
+    FunctionOut();
+    return OMX_TRUE;
+}
+static OMX_BOOL EmptyBufferDone(SF_OMX_COMPONENT *pSfOMXComponent)
+{
+    SF_CODAJ12_IMPLEMEMT *pSfCodaj12Implement = pSfOMXComponent->componentImpl;
+    OMX_BUFFERHEADERTYPE *pOMXBuffer = NULL;
+    Message data;
+    ssize_t ret;
+
+    FunctionIn();
+    LOG(SF_LOG_INFO, "Wait for done used buffer\r\n");
+    ret = msgrcv(pSfCodaj12Implement->sBufferDoneQueue, (void *)&data, BUFSIZ, 0, IPC_NOWAIT);
+    if (ret < 0)
+    {
+        LOG(SF_LOG_ERR, "msgrcv failed ret = %x\r\n", ret);
+        return OMX_FALSE;
+    }
+    // switch (ret)
+    // {
+    // case ENOMSG:
+    //     LOG(SF_LOG_INFO, "msgrcv no message\n");
+    //     return OMX_TRUE;
+    // default:
+    //     LOG(SF_LOG_ERR, "msgrcv failed ret = %x\r\n", ret);
+    //     return OMX_FALSE;
+    // }
+    
+    pOMXBuffer = data.pBuffer;
+    //TODO: input/output Buffer done
+    LOG(SF_LOG_DEBUG, "EmptyBufferDone IN\r\n");
+    pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
+    LOG(SF_LOG_DEBUG, "EmptyBufferDone OUT\r\n");
+
+    FunctionOut();
+    return OMX_TRUE;
+}
+
 static OMX_U32 FeedData(SF_OMX_COMPONENT *pSfOMXComponent)
 {
     FunctionIn();
@@ -611,7 +747,7 @@ static OMX_U32 FeedData(SF_OMX_COMPONENT *pSfOMXComponent)
     BSFeeder feeder = pSfCodaj12Implement->feeder;
     JpgDecHandle handle = pSfCodaj12Implement->handle;
     jpu_buffer_t *vbStream = &pSfCodaj12Implement->vbStream;
-    OMX_U32 nFilledLen;
+    OMX_U32 nFilledLen = 0;
 
     OMX_BUFFERHEADERTYPE *pOMXBuffer = NULL;
     Message data;
@@ -622,18 +758,31 @@ static OMX_U32 FeedData(SF_OMX_COMPONENT *pSfOMXComponent)
         return 0;
     }
     pOMXBuffer = data.pBuffer;
-    if (pOMXBuffer == NULL || data.msg_flag == OMX_BUFFERFLAG_EOS)
-    {
-        return 0;
-    }
+    // if (pOMXBuffer == NULL || data.msg_flag == OMX_BUFFERFLAG_EOS)
+    // {
+    //     return 0;
+    // }
 
-    nFilledLen = pOMXBuffer->nFilledLen;
-    LOG(SF_LOG_INFO, "Address = %p, size = %d\r\n", pOMXBuffer->pBuffer, nFilledLen);
-    pSfCodaj12Implement->functions->BitstreamFeeder_SetData(feeder, pOMXBuffer->pBuffer, nFilledLen);
-    pSfCodaj12Implement->functions->BitstreamFeeder_Act(feeder, handle, vbStream);
-    LOG(SF_LOG_DEBUG, "EmptyBufferDone IN\r\n");
-    pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
-    LOG(SF_LOG_DEBUG, "EmptyBufferDone OUT\r\n");
+    if (pOMXBuffer != NULL)
+    {
+        if (pOMXBuffer->pBuffer != NULL && pOMXBuffer->nFilledLen > 0)
+        {
+            nFilledLen = pOMXBuffer->nFilledLen;
+            LOG(SF_LOG_INFO, "Address = %p, size = %d\r\n", pOMXBuffer->pBuffer, nFilledLen);
+            pSfCodaj12Implement->functions->BitstreamFeeder_SetData(feeder, pOMXBuffer->pBuffer, nFilledLen);
+            pSfCodaj12Implement->functions->BitstreamFeeder_Act(feeder, handle, vbStream);
+        }
+        LOG(SF_LOG_INFO, "Send %p to sBufferDoneQueue\r\n", pOMXBuffer);
+        if (msgsnd(pSfCodaj12Implement->sBufferDoneQueue, (void *)&data, sizeof(data) - sizeof(data.msg_type), 0) == -1)
+        {
+            LOG(SF_LOG_ERR, "msgsnd failed\n");
+            return 0;
+        }
+    }  
+
+    // LOG(SF_LOG_DEBUG, "EmptyBufferDone IN\r\n");
+    // pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
+    // LOG(SF_LOG_DEBUG, "EmptyBufferDone OUT\r\n");
 
     // if (pOMXBuffer->nFlags & 0x1 == 0x1)
     // {
@@ -657,7 +806,8 @@ static OMX_ERRORTYPE WaitForOutputBufferReady(SF_OMX_COMPONENT *pSfOMXComponent)
         return OMX_ErrorInsufficientResources;
     }
     pOMXBuffer = data.pBuffer;
-    if (pOMXBuffer == NULL || data.msg_flag == OMX_BUFFERFLAG_EOS)
+    // if (pOMXBuffer == NULL || data.msg_flag == OMX_BUFFERFLAG_EOS)
+    if (pOMXBuffer == NULL)
     {
         LOG(SF_LOG_INFO, "Buffer end flag detected! \r\n");
         pSfCodaj12Implement->bThreadRunning = OMX_FALSE;
@@ -688,6 +838,7 @@ static void ProcessThread(void *args)
     JpgRet ret = JPG_RET_SUCCESS;
 
     FunctionIn();
+    prctl(PR_SET_NAME, pSfOMXComponent->componentName);
     LOG(SF_LOG_INFO, "vbStream phys_addr = %x, size = %d, virt_addr = %x\r\n", vbStream->phys_addr, vbStream->size, vbStream->virt_addr);
     decOP->streamEndian = decConfig->StreamEndian;
     decOP->frameEndian = decConfig->FrameEndian;
@@ -778,11 +929,12 @@ static void ProcessThread(void *args)
     } while (JPG_RET_SUCCESS != ret);
     //TODO:Set output info
     OMX_PARAM_PORTDEFINITIONTYPE *pPortDefinition = &pSfOMXComponent->portDefinition[OMX_OUTPUT_PORT_INDEX];
-    pPortDefinition->format.image.nFrameWidth = initialInfo->picWidth;
-    pPortDefinition->format.image.nFrameHeight = initialInfo->picHeight;
-    pPortDefinition->format.image.nStride = initialInfo->picWidth;
-    pPortDefinition->format.image.nSliceHeight = initialInfo->picHeight;
-    pPortDefinition->format.image.eCompressionFormat = OMX_IMAGE_CodingUnused;
+    LOG(SF_LOG_DEBUG, "picWidth = %d, picHeight = %d\r\n", initialInfo->picWidth, initialInfo->picHeight);
+    pPortDefinition->format.video.nFrameWidth = initialInfo->picWidth;
+    pPortDefinition->format.video.nFrameHeight = initialInfo->picHeight;
+    pPortDefinition->format.video.nStride = initialInfo->picWidth;
+    pPortDefinition->format.video.nSliceHeight = initialInfo->picHeight;
+    pPortDefinition->format.video.eCompressionFormat = OMX_IMAGE_CodingUnused;
     switch (pSfCodaj12Implement->frameFormat)
     {
     case FORMAT_400:
@@ -821,6 +973,7 @@ static void ProcessThread(void *args)
     while (OMX_TRUE)
     {
         // LOG(SF_LOG_INFO, "GetFrameBufferCount addr = %p\r\n", pSfCodaj12Implement->functions->GetFrameBufferCount);
+        nBufferNumber = pSfOMXComponent->portDefinition[OMX_OUTPUT_PORT_INDEX].nBufferCountActual;
         OMX_U32 number = pSfCodaj12Implement->functions->GetFrameBufferCount(instIdx);
         OMX_S32 oldNumber = -1;
         if (number < nBufferNumber)
@@ -850,10 +1003,11 @@ static void ProcessThread(void *args)
 
     FRAME_BUF *pFrame = pSfCodaj12Implement->frame;
     LOG(SF_LOG_INFO, "Update and regist %d FrameBuffers\r\n", nBufferNumber);
-    LOG(SF_LOG_DEBUG, "%20s%20s%20s\r\n", "virtAddr", "phyAddr", "size");
+    LOG(SF_LOG_DEBUG, "%20s%20s%20s%20s\r\n", "virtAddr", "Y", "CB", "CR");
     for (int i = 0; i < nBufferNumber; i ++)
     {
-        LOG_APPEND(SF_LOG_DEBUG, "%20X%20X%20X\r\n", pFrame[i].vbY.virt_addr, pFrame[i].vbY.phys_addr, pFrame[i].vbY.size);
+        LOG_APPEND(SF_LOG_DEBUG, "%20lX%20lX%20lX%20lX\r\n", pFrame[i].vbY.virt_addr,
+            pFrame[i].vbY.phys_addr, pFrame[i].vbCb.phys_addr, pFrame[i].vbCr.phys_addr);
     }
 
     // ffmpeg: may register frame buffer append
@@ -934,7 +1088,7 @@ static void ProcessThread(void *args)
             // }
         }
         //LOG(SF_LOG_INFO, "\t<->INSTANCE #%d JPU_WaitInterrupt\n", handle->instIndex);
-
+        EmptyBufferDone(pSfOMXComponent);
         if ((ret = pSfCodaj12Implement->functions->JPU_DecGetOutputInfo(handle, &outputInfo)) != JPG_RET_SUCCESS)
         {
             LOG(SF_LOG_ERR, "JPU_DecGetOutputInfo failed Error code is 0x%x \n", ret);
@@ -981,9 +1135,13 @@ static void ProcessThread(void *args)
             break;
         }
         
-        LOG(SF_LOG_DEBUG, "decPicSize = [%d %d], pBuffer = %p, nFilledLen = %d\r\n",
-            outputInfo.decPicWidth, outputInfo.decPicHeight, pBuffer->pBuffer, pBuffer->nFilledLen);
-        LOG(SF_LOG_DEBUG, "FillBufferDone IN\r\n");
+        LOG(SF_LOG_DEBUG, "decPicSize = [%d %d], pBuffer = %p\r\n",
+            outputInfo.decPicWidth, outputInfo.decPicHeight, pBuffer->pBuffer);
+        OMX_U32 nDestHeight = pSfOMXComponent->portDefinition[OMX_OUTPUT_PORT_INDEX].format.video.nFrameHeight;
+        OMX_U32 nDestStride = pSfOMXComponent->portDefinition[OMX_OUTPUT_PORT_INDEX].format.video.nStride;
+        // AdjustFrame(pBuffer, outputInfo.decPicWidth, outputInfo.decPicHeight, nDestStride, nDestHeight);
+        FillBufferDone(pSfOMXComponent, pBuffer);
+        // LOG(SF_LOG_DEBUG, "FillBufferDone IN\r\n");
         // Following comment store data loal
         // {
         //     FILE *fb = fopen("./out.bcp", "ab+");
@@ -991,8 +1149,8 @@ static void ProcessThread(void *args)
         //     fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
         //     fclose(fb);
         // }
-        pSfOMXComponent->callbacks->FillBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pBuffer);
-        LOG(SF_LOG_DEBUG, "FillBufferDone OUT\r\n");
+        // pSfOMXComponent->callbacks->FillBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pBuffer);
+        // LOG(SF_LOG_DEBUG, "FillBufferDone OUT\r\n");
         if (outputInfo.numOfErrMBs)
         {
             Int32 errRstIdx, errPosX, errPosY;
