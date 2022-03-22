@@ -953,9 +953,9 @@ JpgRet JPU_DecStartOneFrame(JpgDecHandle handle, JpgDecParam *param)
     JpuWriteInstReg(instRegIndex, MJPEG_ROT_INFO_REG, (ppuEnable<<4) | (pDecInfo->mirrorIndex<<2) | pDecInfo->rotationIndex);
 
     val = (pDecInfo->frameIdx % pDecInfo->numFrameBuffers);
-    JLOG(INFO, "%s: bufY = %lx bufCb = %lx bufCr = %lx stride = %d stride_c = %d\r\n", __FUNCTION__,
-        pDecInfo->frameBufPool[val].bufY, pDecInfo->frameBufPool[val].bufCb, pDecInfo->frameBufPool[val].bufCr, 
-        pDecInfo->stride, pDecInfo->stride_c);
+    // JLOG(INFO, "%s: bufY = %lx bufCb = %lx bufCr = %lx stride = %d stride_c = %d\r\n", __FUNCTION__,
+    //     pDecInfo->frameBufPool[val].bufY, pDecInfo->frameBufPool[val].bufCb, pDecInfo->frameBufPool[val].bufCr, 
+    //     pDecInfo->stride, pDecInfo->stride_c);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE00_REG, pDecInfo->frameBufPool[val].bufY);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE01_REG, pDecInfo->frameBufPool[val].bufCb);
     JpuWriteInstReg(instRegIndex, MJPEG_DPB_BASE02_REG, pDecInfo->frameBufPool[val].bufCr);
