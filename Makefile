@@ -424,7 +424,7 @@ UBOOT_END=473087
 UBOOT_SIZE=2047
 UENV_START=473088
 UENV_END=475135
-$(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
+$(vfat_image): $(fit) $(confdir)/u74_uEnv.txt $(confdir)/uEnv.txt
 	@if [ `du --apparent-size --block-size=512 $(uboot) | cut -f 1` -ge $(UBOOT_SIZE) ]; then \
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
@@ -432,6 +432,7 @@ $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/u74_uEnv.txt ::u74_uEnv.txt
+	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/uEnv.txt ::uEnv.txt
 else
 
 VFAT_START=4096
