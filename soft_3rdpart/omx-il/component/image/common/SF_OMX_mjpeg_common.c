@@ -395,7 +395,10 @@ OMX_U8 *AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeByt
     Uint32 bufferIndex;
     JpgRet jpgret;
 
+    CbCrInterLeave chromaInterleave;
+    PackedFormat packedFormat;
     FunctionIn();
+
     if (initialInfo->sourceFormat == FORMAT_420 || initialInfo->sourceFormat == FORMAT_422)
         framebufWidth = JPU_CEIL(16, initialInfo->picWidth);
     else
@@ -420,6 +423,17 @@ OMX_U8 *AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeByt
                 break;
             }
         }
+
+        if (initialInfo->sourceFormat == FORMAT_420 || initialInfo->sourceFormat == FORMAT_422)
+            framebufWidth = JPU_CEIL(16, framebufWidth);
+        else
+            framebufWidth = JPU_CEIL(8, framebufWidth);
+
+        if (initialInfo->sourceFormat == FORMAT_420 || initialInfo->sourceFormat == FORMAT_440)
+            framebufHeight = JPU_CEIL(16, framebufHeight);
+        else
+            framebufHeight = JPU_CEIL(8, framebufHeight);
+
         if (framebufWidth == 0 || framebufHeight == 0)
         {
             LOG(SF_LOG_ERR, "Can not get frame size\r\n");
@@ -468,13 +482,24 @@ OMX_U8 *AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeByt
     {
         bitDepth = 8;
     }
+    if (handle == NULL)
+    {
+        LOG(SF_LOG_INFO, "JPU not open yet, use default\r\n");
+        chromaInterleave = decConfig->cbcrInterleave;
+        packedFormat = decConfig->packedFormat;
+    }
+    else
+    {
+        chromaInterleave = decOP->chromaInterleave;
+        packedFormat = decOP->packedFormat;
+    }
     LOG(SF_LOG_DEBUG, "AllocateOneFrameBuffer\r\n");
     LOG_APPEND(SF_LOG_DEBUG, "instIdx = %d subsample = %d chromaInterleave = %d packedFormat = %d rotation = %d\r\n",
-                instIdx, subsample, decOP->chromaInterleave, decOP->packedFormat, decConfig->rotation);
+                instIdx, subsample, chromaInterleave, packedFormat, decConfig->rotation);
     LOG_APPEND(SF_LOG_DEBUG, "scalerOn = %d decodingWidth = %d decodingHeight = %d bitDepth = %d\r\n",
                 scalerOn, decodingWidth, decodingHeight, bitDepth);
     virtAddr = (OMX_U8 *)pSfCodaj12Implement->functions->AllocateOneFrameBuffer
-        (instIdx, subsample, decOP->chromaInterleave, decOP->packedFormat, decConfig->rotation,
+        (instIdx, subsample, chromaInterleave, packedFormat, decConfig->rotation,
         scalerOn, decodingWidth, decodingHeight, bitDepth, &bufferIndex);
     if (virtAddr == NULL)
     {
