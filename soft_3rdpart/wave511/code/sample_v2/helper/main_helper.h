@@ -26,10 +26,18 @@
 #ifndef _MAIN_HELPER_H_
 #define _MAIN_HELPER_H_
 
-#include "config.h"
-#include "vpuapifunc.h"
-#include "vpuapi.h"
-#include "vputypes.h"
+
+#ifdef USE_FEEDING_METHOD_BUFFER
+   #include "wave511/config.h"
+   #include "wave511/vpuapi/vpuapifunc.h"
+   #include "wave511/vpuapi/vpuapi.h"
+   #include "wave511/vpuapi/vputypes.h"
+#else
+    #include "config.h"
+    #include "vpuapifunc.h"
+    #include "vpuapi.h"
+    #include "vputypes.h"
+#endif
 #ifdef PLATFORM_QNX
     #include <sys/stat.h>
 #endif

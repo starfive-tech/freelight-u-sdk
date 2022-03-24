@@ -94,7 +94,7 @@ static OMX_ERRORTYPE event_handler(
 
 static void help()
 {
-    printf("./video_dec_test -i <input file> -o <output file> \r\n");
+    printf("./omx_dec_test -i <input file> -o <output file> \r\n");
 }
 
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
@@ -290,7 +290,7 @@ int main(int argc, char *argv)
            codecParameters->width, codecParameters->height);
 
     /*omx init*/
-    OMX_HANDLETYPE hComponentDecoder;
+    OMX_HANDLETYPE hComponentDecoder  = NULL;
     OMX_CALLBACKTYPE callbacks;
     int ret = OMX_ErrorNone;
     signal(SIGINT, signal_handle);
@@ -320,10 +320,13 @@ int main(int argc, char *argv)
         return 0;
     }
     decodeTestContext->hComponentDecoder = hComponentDecoder;
+     
     OMX_PARAM_PORTDEFINITIONTYPE pOutputPortDefinition;
     OMX_INIT_STRUCTURE(pOutputPortDefinition);
     pOutputPortDefinition.nPortIndex = 1;
     OMX_GetParameter(decodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
+    pOutputPortDefinition.format.video.nFrameWidth = codecParameters->width;
+    pOutputPortDefinition.format.video.nFrameHeight = codecParameters->height;
     if (strstr(decodeTestContext->sOutputFormat, "nv12") != NULL)
     {
         pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
@@ -352,7 +355,6 @@ int main(int argc, char *argv)
     pInputPortDefinition.format.video.nFrameWidth = codecParameters->width;
     pInputPortDefinition.format.video.nFrameHeight = codecParameters->height;
     OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pInputPortDefinition);
-
     /*Alloc input buffer*/
     OMX_U32 nInputWidth = codecParameters->width;
     OMX_U32 nInputHeight = codecParameters->height;

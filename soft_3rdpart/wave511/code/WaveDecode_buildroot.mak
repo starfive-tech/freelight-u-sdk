@@ -65,7 +65,7 @@ CXX = $(CROSS_CC_PREFIX)g++
 LINKER=$(CC)
 AR  = $(CROSS_CC_PREFIX)ar
 
-INCLUDES = -I./vpuapi -I./ffmpeg/include -I./sample_v2/helper -I./sample_v2/helper/misc -I./sample_v2/component -I./vdi
+INCLUDES = -I./vpuapi -I./ffmpeg/include -I./sample_v2/helper -I./sample_v2/helper/misc -I./sample_v2/component -I./vdi -I../
 INCLUDES += -I./sample_v2/component_decoder
 ifeq ($(USE_RTL_SIM), yes)
 DEFINES += -DCNM_SIM_PLATFORM -DCNM_SIM_DPI_INTERFACE -DSUPPORT_DECODER

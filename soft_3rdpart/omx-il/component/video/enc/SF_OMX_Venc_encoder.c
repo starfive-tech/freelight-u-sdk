@@ -60,6 +60,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
 {
     FunctionIn();
     SF_OMX_COMPONENT *pSfOMXComponent = GetSFOMXComponrntByComponent(com);
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
     ComponentImpl *pSFComponent = (ComponentImpl *)com;
     static OMX_U32 enc_cnt = 0;
     static struct timeval tv_old = {0};
@@ -74,6 +75,11 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     {
     case COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE:
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
+        if (pOMXBuffer == NULL)
+        {
+            LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
+            return;
+        }
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
         LOG(SF_LOG_PERF, "OMX empty one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
         pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
@@ -82,6 +88,11 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     {
         struct timeval tv;
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
+        if (pOMXBuffer == NULL)
+        {
+            LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
+            return;
+        }
         gettimeofday(&tv, NULL);
         if (gInitTimeStamp == 0)
         {
@@ -110,8 +121,8 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         }
         LOG(SF_LOG_PERF, "OMX finish one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n", pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
         pSfOMXComponent->callbacks->FillBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
-        ComponentImpl *pRendererComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
-        LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
+        ComponentImpl *pRendererComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
+        LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
                                                     pSfOMXComponent->portDefinition[1].nBufferCountActual);
     }
     break;
@@ -147,8 +158,8 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
 
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
-
-    ComponentImpl *pFeederComponent = pSfOMXComponent->hSFComponentFeeder;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    ComponentImpl *pFeederComponent = pSfVideoImplement->hSFComponentFeeder;
 
     PortContainerExternal *pPortContainerExternal = malloc(sizeof(PortContainerExternal));
     if (pPortContainerExternal == NULL)
@@ -162,13 +173,13 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     pPortContainerExternal->nFlags = pBuffer->nFlags;
     pPortContainerExternal->nBufferIndex = (OMX_U32)pBuffer->pInputPortPrivate;
     LOG(SF_LOG_INFO, "Index = %d, Address = %p, Flag = %X\r\n",(int)pBuffer->pInputPortPrivate, pBuffer->pBuffer, pBuffer->nFlags);
-    if (pSfOMXComponent->functions->Queue_Enqueue(pFeederComponent->srcPort.inputQ, (void *)pPortContainerExternal) != OMX_TRUE)
+    if (pSfVideoImplement->functions->Queue_Enqueue(pFeederComponent->srcPort.inputQ, (void *)pPortContainerExternal) != OMX_TRUE)
     {
         LOG(SF_LOG_ERR, "%p:%p FAIL\r\n", pFeederComponent->srcPort.inputQ, pPortContainerExternal);
         free(pPortContainerExternal);
         return OMX_ErrorInsufficientResources;
     }
-    LOG(SF_LOG_PERF, "input queue count=%d/%d\r\n", pSfOMXComponent->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ), 
+    LOG(SF_LOG_PERF, "input queue count=%d/%d\r\n", pSfVideoImplement->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ), 
                                                     pSfOMXComponent->portDefinition[0].nBufferCountActual);
     free(pPortContainerExternal);
     pFeederComponent->pause = OMX_FALSE;
@@ -193,7 +204,8 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
 
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = (SF_OMX_COMPONENT *)pOMXComponent->pComponentPrivate;
-    ComponentImpl *pRendererComponent = pSfOMXComponent->hSFComponentRender;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    ComponentImpl *pRendererComponent = pSfVideoImplement->hSFComponentRender;
     PortContainerExternal *pPortContainerExternal = malloc(sizeof(PortContainerExternal));
     if (pPortContainerExternal == NULL)
     {
@@ -203,13 +215,13 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     memset(pPortContainerExternal, 0, sizeof(PortContainerExternal));
     pPortContainerExternal->pBuffer = pBuffer->pBuffer;
     pPortContainerExternal->nFilledLen = pBuffer->nAllocLen;
-    if (pSfOMXComponent->functions->Queue_Enqueue(pRendererComponent->sinkPort.inputQ, (void *)pPortContainerExternal) == -1)
+    if (pSfVideoImplement->functions->Queue_Enqueue(pRendererComponent->sinkPort.inputQ, (void *)pPortContainerExternal) == -1)
     {
         LOG(SF_LOG_ERR, "%p:%p FAIL\r\n", pRendererComponent->sinkPort.inputQ, pPortContainerExternal);
         free(pPortContainerExternal);
         return OMX_ErrorInsufficientResources;
     }
-    LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfOMXComponent->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
+    LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
                                                         pSfOMXComponent->portDefinition[1].nBufferCountActual);
     free(pPortContainerExternal);
     pRendererComponent->pause = OMX_FALSE;
@@ -270,7 +282,8 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
-    ComponentImpl *pComponentFeeder = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    ComponentImpl *pComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
     OMX_U32 i = 0;
 
     FunctionIn();
@@ -295,7 +308,7 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
         // Alloc DMA memory first
         if (pSfOMXComponent->memory_optimization)
         {
-            temp_bufferHeader->pBuffer = pSfOMXComponent->functions->AllocateFrameBuffer2(pComponentFeeder, nSizeBytes);
+            temp_bufferHeader->pBuffer = pSfVideoImplement->functions->AllocateFrameBuffer2(pComponentFeeder, nSizeBytes);
         }
         // DMA Memory alloc fail, goto normal alloc
         if (temp_bufferHeader->pBuffer == NULL)
@@ -343,6 +356,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
     OMX_PARAM_PORTDEFINITIONTYPE *pInputPort = &pSfOMXComponent->portDefinition[0];
     OMX_PARAM_PORTDEFINITIONTYPE *pOutputPort = &pSfOMXComponent->portDefinition[1];
 
@@ -429,7 +443,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
     {
         OMX_VIDEO_PARAM_AVCTYPE *pDstAVCComponent = (OMX_VIDEO_PARAM_AVCTYPE *)ComponentParameterStructure;
         OMX_U32 nPortIndex = pDstAVCComponent->nPortIndex;
-        OMX_VIDEO_PARAM_AVCTYPE *pSrcAVCComponent = &pSfOMXComponent->AVCComponent[nPortIndex];
+        OMX_VIDEO_PARAM_AVCTYPE *pSrcAVCComponent = &pSfVideoImplement->AVCComponent[nPortIndex];
 
         LOG(SF_LOG_INFO, "Get nPFrames = %d on port %d\r\n", pSrcAVCComponent->nPFrames, nPortIndex);
         memcpy(pDstAVCComponent, pSrcAVCComponent, sizeof(OMX_VIDEO_PARAM_AVCTYPE));
@@ -439,7 +453,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
     {
         OMX_VIDEO_PARAM_HEVCTYPE *pDstHEVCComponent = (OMX_VIDEO_PARAM_HEVCTYPE *)ComponentParameterStructure;
         OMX_U32 nPortIndex = pDstHEVCComponent->nPortIndex;
-        OMX_VIDEO_PARAM_HEVCTYPE *pSrcHEVCComponent = &pSfOMXComponent->HEVCComponent[nPortIndex];
+        OMX_VIDEO_PARAM_HEVCTYPE *pSrcHEVCComponent = &pSfVideoImplement->HEVCComponent[nPortIndex];
 
         LOG(SF_LOG_INFO, "Get nKeyFrameInterval = %d on port %d\r\n", pSrcHEVCComponent->nKeyFrameInterval, nPortIndex);
         memcpy(pDstHEVCComponent, pSrcHEVCComponent, sizeof(OMX_VIDEO_PARAM_HEVCTYPE));
@@ -489,6 +503,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
 
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
     OMX_PARAM_PORTDEFINITIONTYPE *pInputPort = &pSfOMXComponent->portDefinition[0];
     OMX_PARAM_PORTDEFINITIONTYPE *pOutputPort = &pSfOMXComponent->portDefinition[1];
 
@@ -512,8 +527,8 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         LOG(SF_LOG_INFO, "Set width = %d, height = %d, xFramerate = %d, nBitrate = %d, nBufferCountActual = %d on port %d\r\n",
             width, height, xFramerate, nBitrate, nBufferCountActual, portIndex);
         OMX_COLOR_FORMATTYPE eColorFormat = pPortDefinition->format.video.eColorFormat;
-        TestEncConfig *pTestEncConfig = (TestEncConfig *)pSfOMXComponent->testConfig;
-        CNMComponentConfig *config = pSfOMXComponent->config;
+        TestEncConfig *pTestEncConfig = (TestEncConfig *)pSfVideoImplement->testConfig;
+        CNMComponentConfig *config = pSfVideoImplement->config;
         EncOpenParam *encOpenParam = &config->encOpenParam;
 
         if (xFramerate == 0)
@@ -526,9 +541,9 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             if (nBufferCountActual != pInputPort->nBufferCountActual)
             {
                 LOG(SF_LOG_INFO, "Set input buffer count = %d\r\n", nBufferCountActual);
-                ComponentImpl *pFeederComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
-                pSfOMXComponent->functions->ComponentPortDestroy(&pFeederComponent->srcPort);
-                pSfOMXComponent->functions->ComponentPortCreate(&pFeederComponent->srcPort, pSfOMXComponent->hSFComponentFeeder,
+                ComponentImpl *pFeederComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+                pSfVideoImplement->functions->ComponentPortDestroy(&pFeederComponent->srcPort);
+                pSfVideoImplement->functions->ComponentPortCreate(&pFeederComponent->srcPort, pSfVideoImplement->hSFComponentFeeder,
                                                                 nBufferCountActual, sizeof(PortContainerExternal));
             }
 
@@ -539,13 +554,17 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             LOG(SF_LOG_INFO, "Set eColorFormat to %d\r\n", eColorFormat);
             switch (eColorFormat)
             {
-            case OMX_COLOR_FormatYUV420Planar:
+            case OMX_COLOR_FormatYUV420Planar: //I420
                 pTestEncConfig->cbcrInterleave = FALSE;
                 pTestEncConfig->nv21 = FALSE;
                 break;
-            case OMX_COLOR_FormatYUV420SemiPlanar:
-                pTestEncConfig->cbcrInterleave = OMX_TRUE;
-                pTestEncConfig->nv21 = OMX_FALSE;
+            case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
+                pTestEncConfig->cbcrInterleave = TRUE;
+                pTestEncConfig->nv21 = FALSE;
+                break;
+            case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
+                pTestEncConfig->cbcrInterleave = TRUE;
+                pTestEncConfig->nv21 = TRUE;
                 break;
             default:
                 break;
@@ -556,10 +575,10 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             LOG(SF_LOG_INFO, "Current output buffer count = %d\r\n", pOutputPort->nBufferCountActual);
             if (nBufferCountActual != pOutputPort->nBufferCountActual)
             {
-                ComponentImpl *pRenderComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
+                ComponentImpl *pRenderComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
                 LOG(SF_LOG_INFO, "Set output buffer count = %d\r\n", nBufferCountActual);
-                pSfOMXComponent->functions->ComponentPortDestroy(&pRenderComponent->sinkPort);
-                pSfOMXComponent->functions->ComponentPortCreate(&pRenderComponent->sinkPort, pSfOMXComponent->hSFComponentRender,
+                pSfVideoImplement->functions->ComponentPortDestroy(&pRenderComponent->sinkPort);
+                pSfVideoImplement->functions->ComponentPortCreate(&pRenderComponent->sinkPort, pSfVideoImplement->hSFComponentRender,
                                                                 nBufferCountActual, sizeof(PortContainerExternal));
             }
 
@@ -588,7 +607,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
     case OMX_IndexParamVideoPortFormat:
         {
             OMX_VIDEO_PARAM_PORTFORMATTYPE *portFormat = (OMX_VIDEO_PARAM_PORTFORMATTYPE *)ComponentParameterStructure;
-            TestEncConfig *pTestEncConfig = (TestEncConfig *)pSfOMXComponent->testConfig;
+            TestEncConfig *pTestEncConfig = (TestEncConfig *)pSfVideoImplement->testConfig;
             OMX_COLOR_FORMATTYPE eColorFormat = portFormat->eColorFormat;
             LOG(SF_LOG_INFO, "Set eColorFormat to %d\r\n", eColorFormat);
             switch (eColorFormat)
@@ -637,7 +656,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         }
         else
         {
-            pSfOMXComponent->AVCComponent[1].nPFrames = pAVCIntraPeriod->nPFrames;
+            pSfVideoImplement->AVCComponent[1].nPFrames = pAVCIntraPeriod->nPFrames;
         }
     }
     break;
@@ -645,7 +664,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
     {
         OMX_VIDEO_PARAM_AVCTYPE *pSrcAVCComponent= (OMX_VIDEO_PARAM_AVCTYPE *)ComponentParameterStructure;
         OMX_U32 nPortIndex = pSrcAVCComponent->nPortIndex;
-        OMX_VIDEO_PARAM_AVCTYPE *pDstAVCComponent = &pSfOMXComponent->AVCComponent[nPortIndex];
+        OMX_VIDEO_PARAM_AVCTYPE *pDstAVCComponent = &pSfVideoImplement->AVCComponent[nPortIndex];
         OMX_U32 nPFrames = pSrcAVCComponent->nPFrames;
 
         LOG(SF_LOG_INFO, "Set nPFrames = %d on port %d\r\n", nPFrames, nPortIndex);
@@ -662,7 +681,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
     {
         OMX_VIDEO_PARAM_HEVCTYPE *pSrcHEVCComponent= (OMX_VIDEO_PARAM_HEVCTYPE *)ComponentParameterStructure;
         OMX_U32 nPortIndex = pSrcHEVCComponent->nPortIndex;
-        OMX_VIDEO_PARAM_HEVCTYPE *pDstHEVCComponent = &pSfOMXComponent->HEVCComponent[nPortIndex];
+        OMX_VIDEO_PARAM_HEVCTYPE *pDstHEVCComponent = &pSfVideoImplement->HEVCComponent[nPortIndex];
         OMX_U32 nKeyFrameInterval = pSrcHEVCComponent->nKeyFrameInterval;
 
         LOG(SF_LOG_INFO, "Set nKeyFrameInterval = %d on port %d\r\n", nKeyFrameInterval, nPortIndex);
@@ -796,17 +815,18 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     CNMComponentConfig *config = NULL;
     Uint32 sizeInWord;
     char *fwPath = NULL;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
 
-    if (pSfOMXComponent->hSFComponentExecoder != NULL)
+    if (pSfVideoImplement->hSFComponentExecoder != NULL)
     {
         return OMX_ErrorNone;
     }
 
     FunctionIn();
 
-    testConfig = (TestEncConfig *)pSfOMXComponent->testConfig;
+    testConfig = (TestEncConfig *)pSfVideoImplement->testConfig;
 
-    testConfig->productId = (ProductId)pSfOMXComponent->functions->VPU_GetProductId(testConfig->coreIdx);
+    testConfig->productId = (ProductId)pSfVideoImplement->functions->VPU_GetProductId(testConfig->coreIdx);
     if (CheckEncTestConfig(testConfig) == FALSE)
     {
         LOG(SF_LOG_ERR, "fail to CheckTestConfig()\n");
@@ -829,25 +849,25 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
         return OMX_ErrorBadParameter;
     }
     LOG(SF_LOG_INFO, "FW PATH = %s\n", fwPath);
-    if (pSfOMXComponent->functions->LoadFirmware(testConfig->productId, (Uint8 **)&(pSfOMXComponent->pusBitCode), &sizeInWord, fwPath) < 0)
+    if (pSfVideoImplement->functions->LoadFirmware(testConfig->productId, (Uint8 **)&(pSfVideoImplement->pusBitCode), &sizeInWord, fwPath) < 0)
     {
         LOG(SF_LOG_ERR, "Failed to load firmware: %s\n", fwPath);
         return OMX_ErrorInsufficientResources;
     }
 
-    config = pSfOMXComponent->config;
+    config = pSfVideoImplement->config;
     memcpy(&(config->testEncConfig), testConfig, sizeof(TestEncConfig));
-    config->bitcode = (Uint8 *)pSfOMXComponent->pusBitCode;
+    config->bitcode = (Uint8 *)pSfVideoImplement->pusBitCode;
     config->sizeOfBitcode = sizeInWord;
     LOG(SF_LOG_INFO, "cbcrInterleave= %d, nv21 = %d\r\n", config->testEncConfig.cbcrInterleave, config->testEncConfig.nv21);
     memcpy(config->testEncConfig.cfgFileName, WAVE521_CONFIG_FILE, sizeof(WAVE521_CONFIG_FILE));
     LOG(SF_LOG_INFO, "Get width = %d, height = %d \r\n", config->encOpenParam.picWidth, config->encOpenParam.picHeight);
-    if (pSfOMXComponent->functions->SetupEncoderOpenParam(&config->encOpenParam, &config->testEncConfig, NULL) == OMX_FALSE)
+    if (pSfVideoImplement->functions->SetupEncoderOpenParam(&config->encOpenParam, &config->testEncConfig, NULL) == OMX_FALSE)
     {
         LOG(SF_LOG_ERR, "SetupEncoderOpenParam error\n");
         return OMX_ErrorBadParameter;
     }
-    CNMComponentConfig *pCNMComponentConfig = (CNMComponentConfig*)pSfOMXComponent->config;
+    CNMComponentConfig *pCNMComponentConfig = (CNMComponentConfig*)pSfVideoImplement->config;
     config->encOpenParam.picWidth = pSfOMXComponent->portDefinition[0].format.video.nFrameWidth;
     config->encOpenParam.picHeight = pSfOMXComponent->portDefinition[0].format.video.nFrameHeight;
 
@@ -871,51 +891,51 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
         pSfOMXComponent->portDefinition[1].format.video.nBitrate = config->encOpenParam.bitRate;
     }
 
-    if (pSfOMXComponent->bitFormat == STD_AVC)
+    if (pSfVideoImplement->bitFormat == STD_AVC)
     {
-        config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfOMXComponent->AVCComponent[1].nPFrames;
+        config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfVideoImplement->AVCComponent[1].nPFrames;
     }
-    else if (pSfOMXComponent->bitFormat == STD_HEVC)
+    else if (pSfVideoImplement->bitFormat == STD_HEVC)
     {
-        config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfOMXComponent->HEVCComponent[1].nKeyFrameInterval;
+        config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfVideoImplement->HEVCComponent[1].nKeyFrameInterval;
     }
     LOG(SF_LOG_INFO, "Get width = %d, height = %d frameRateInfo = %d intraPeriod = %d bitrate = %d\r\n",
         config->encOpenParam.picWidth, config->encOpenParam.picHeight, config->encOpenParam.frameRateInfo,
         config->encOpenParam.EncStdParam.waveParam.intraPeriod, config->encOpenParam.bitRate);
 
-    pSfOMXComponent->hSFComponentExecoder = pSfOMXComponent->functions->ComponentCreate("wave_encoder", config);
-    pSfOMXComponent->hSFComponentFeeder = pSfOMXComponent->functions->ComponentCreate("yuvfeeder", config);
-    pSfOMXComponent->hSFComponentRender = pSfOMXComponent->functions->ComponentCreate("reader", config);
+    pSfVideoImplement->hSFComponentExecoder = pSfVideoImplement->functions->ComponentCreate("wave_encoder", config);
+    pSfVideoImplement->hSFComponentFeeder = pSfVideoImplement->functions->ComponentCreate("yuvfeeder", config);
+    pSfVideoImplement->hSFComponentRender = pSfVideoImplement->functions->ComponentCreate("reader", config);
 
-    ComponentImpl *pFeederComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
-    pSfOMXComponent->functions->ComponentPortCreate(&pFeederComponent->srcPort, pSfOMXComponent->hSFComponentFeeder,
+    ComponentImpl *pFeederComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+    pSfVideoImplement->functions->ComponentPortCreate(&pFeederComponent->srcPort, pSfVideoImplement->hSFComponentFeeder,
                     pSfOMXComponent->portDefinition[0].nBufferCountActual, sizeof(PortContainerExternal));
 
-    ComponentImpl *pRenderComponent = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
-    pSfOMXComponent->functions->ComponentPortDestroy(&pRenderComponent->sinkPort);
-    pSfOMXComponent->functions->ComponentPortCreate(&pRenderComponent->sinkPort, pSfOMXComponent->hSFComponentRender,
+    ComponentImpl *pRenderComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
+    pSfVideoImplement->functions->ComponentPortDestroy(&pRenderComponent->sinkPort);
+    pSfVideoImplement->functions->ComponentPortCreate(&pRenderComponent->sinkPort, pSfVideoImplement->hSFComponentRender,
                     pSfOMXComponent->portDefinition[1].nBufferCountActual, sizeof(PortContainerExternal));
 
-    if (pSfOMXComponent->functions->SetupEncListenerContext(pSfOMXComponent->lsnCtx, config) == TRUE)
+    if (pSfVideoImplement->functions->SetupEncListenerContext(pSfVideoImplement->lsnCtx, config) == TRUE)
     {
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentExecoder,
-                                                              COMPONENT_EVENT_ENC_ALL, pSfOMXComponent->functions->EncoderListener, (void *)pSfOMXComponent->lsnCtx);
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentExecoder,
-                                                              COMPONENT_EVENT_ENC_REGISTER_FB, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentExecoder,
-                                                              COMPONENT_EVENT_ENC_ENCODED_ALL, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentFeeder,
-                                                              COMPONENT_EVENT_ENC_ALL, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
-        pSfOMXComponent->functions->ComponentRegisterListener(pSfOMXComponent->hSFComponentRender,
-                                                              COMPONENT_EVENT_ENC_ALL, OnEventArrived, (void *)pSfOMXComponent->lsnCtx);
+        pSfVideoImplement->functions->ComponentRegisterListener(pSfVideoImplement->hSFComponentExecoder,
+                                                              COMPONENT_EVENT_ENC_ALL, pSfVideoImplement->functions->EncoderListener, (void *)pSfVideoImplement->lsnCtx);
+        pSfVideoImplement->functions->ComponentRegisterListener(pSfVideoImplement->hSFComponentExecoder,
+                                                              COMPONENT_EVENT_ENC_REGISTER_FB, OnEventArrived, (void *)pSfVideoImplement->lsnCtx);
+        pSfVideoImplement->functions->ComponentRegisterListener(pSfVideoImplement->hSFComponentExecoder,
+                                                              COMPONENT_EVENT_ENC_ENCODED_ALL, OnEventArrived, (void *)pSfVideoImplement->lsnCtx);
+        pSfVideoImplement->functions->ComponentRegisterListener(pSfVideoImplement->hSFComponentFeeder,
+                                                              COMPONENT_EVENT_ENC_ALL, OnEventArrived, (void *)pSfVideoImplement->lsnCtx);
+        pSfVideoImplement->functions->ComponentRegisterListener(pSfVideoImplement->hSFComponentRender,
+                                                              COMPONENT_EVENT_ENC_ALL, OnEventArrived, (void *)pSfVideoImplement->lsnCtx);
     }
     else
     {
         LOG(SF_LOG_ERR, "ComponentRegisterListener fail\r\n");
         return OMX_ErrorBadParameter;
     }
-    pSfOMXComponent->functions->ComponentSetupTunnel(pSfOMXComponent->hSFComponentFeeder, pSfOMXComponent->hSFComponentExecoder);
-    pSfOMXComponent->functions->ComponentSetupTunnel(pSfOMXComponent->hSFComponentExecoder, pSfOMXComponent->hSFComponentRender);
+    pSfVideoImplement->functions->ComponentSetupTunnel(pSfVideoImplement->hSFComponentFeeder, pSfVideoImplement->hSFComponentExecoder);
+    pSfVideoImplement->functions->ComponentSetupTunnel(pSfVideoImplement->hSFComponentExecoder, pSfVideoImplement->hSFComponentRender);
     FunctionOut();
     return OMX_ErrorNone;
 }
@@ -929,6 +949,7 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
     ComponentImpl *pSFComponentEncoder = NULL;
     ComponentImpl *pSFComponentFeeder = NULL;
     ComponentImpl *pSFComponentRender = NULL;
@@ -951,14 +972,14 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
         switch (nParam)
         {
         case OMX_StateLoaded:
-            if (pSfOMXComponent->hSFComponentExecoder == NULL)
+            if (pSfVideoImplement->hSFComponentExecoder == NULL)
             {
                 break;
             }
-            pSFComponentEncoder = (ComponentImpl *)pSfOMXComponent->hSFComponentExecoder;
-            pSFComponentFeeder = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
-            pSFComponentRender = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
-            currentState = pSfOMXComponent->functions->ComponentGetState(pSfOMXComponent->hSFComponentExecoder);
+            pSFComponentEncoder = (ComponentImpl *)pSfVideoImplement->hSFComponentExecoder;
+            pSFComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+            pSFComponentRender = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
+            currentState = pSfVideoImplement->functions->ComponentGetState(pSfVideoImplement->hSFComponentExecoder);
             LOG(SF_LOG_INFO, "VPU Current state = %X\r\n", currentState);
             switch(currentState)
             {
@@ -966,8 +987,8 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 case COMPONENT_STATE_PREPARED:
                 case COMPONENT_STATE_EXECUTED:
                 case COMPONENT_STATE_TERMINATED:
-                if (pSfOMXComponent->functions->Queue_Get_Cnt(pSFComponentRender->sinkPort.inputQ) > 0 ||
-                    pSfOMXComponent->functions->Queue_Get_Cnt(pSFComponentFeeder->srcPort.inputQ) > 0)
+                if (pSfVideoImplement->functions->Queue_Get_Cnt(pSFComponentRender->sinkPort.inputQ) > 0 ||
+                    pSfVideoImplement->functions->Queue_Get_Cnt(pSFComponentFeeder->srcPort.inputQ) > 0)
                 {
                     LOG(SF_LOG_ERR, "Buffer not flush!\r\n")
                     // ret = OMX_ErrorIncorrectStateTransition;
@@ -983,7 +1004,7 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
             }
             break;
         case OMX_StateIdle:
-            if (pSfOMXComponent->hSFComponentExecoder == NULL)
+            if (pSfVideoImplement->hSFComponentExecoder == NULL)
             {
                 ret = InitEncoder(pSfOMXComponent);
                 if (ret != OMX_ErrorNone)
@@ -992,10 +1013,10 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 }
             }
 
-            pSFComponentEncoder = (ComponentImpl *)pSfOMXComponent->hSFComponentExecoder;
-            pSFComponentFeeder = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
-            pSFComponentRender = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
-            currentState = pSfOMXComponent->functions->ComponentGetState(pSfOMXComponent->hSFComponentExecoder);
+            pSFComponentEncoder = (ComponentImpl *)pSfVideoImplement->hSFComponentExecoder;
+            pSFComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+            pSFComponentRender = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
+            currentState = pSfVideoImplement->functions->ComponentGetState(pSfVideoImplement->hSFComponentExecoder);
             LOG(SF_LOG_INFO, "VPU Current state = %X\r\n", currentState);
             switch(currentState)
             {
@@ -1006,22 +1027,22 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 if (pSFComponentEncoder->thread == NULL)
                 {
                     LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentEncoder->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentEncoder);
+                    currentState = pSfVideoImplement->functions->ComponentExecute(pSFComponentEncoder);
                     LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
                 }
                 if (pSFComponentFeeder->thread == NULL)
                 {
                     LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentFeeder->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentFeeder);
+                    currentState = pSfVideoImplement->functions->ComponentExecute(pSFComponentFeeder);
                     LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
                 }
                 if (pSFComponentRender->thread == NULL)
                 {
                     LOG(SF_LOG_INFO, "execute component %s\r\n", pSFComponentRender->name);
-                    currentState = pSfOMXComponent->functions->ComponentExecute(pSFComponentRender);
+                    currentState = pSfVideoImplement->functions->ComponentExecute(pSFComponentRender);
                     LOG(SF_LOG_INFO, "ret = %d\r\n", currentState);
                 }
-                pSfOMXComponent->functions->WaitForExecoderReady(pSFComponentEncoder);
+                pSfVideoImplement->functions->WaitForExecoderReady(pSFComponentEncoder);
                 break;
             case COMPONENT_STATE_PREPARED:
             case COMPONENT_STATE_EXECUTED:
@@ -1040,12 +1061,12 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
             break;
 
         case OMX_StateExecuting:
-            pSFComponentEncoder = (ComponentImpl *)pSfOMXComponent->hSFComponentExecoder;
-            pSFComponentFeeder = (ComponentImpl *)pSfOMXComponent->hSFComponentFeeder;
-            pSFComponentRender = (ComponentImpl *)pSfOMXComponent->hSFComponentRender;
+            pSFComponentEncoder = (ComponentImpl *)pSfVideoImplement->hSFComponentExecoder;
+            pSFComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+            pSFComponentRender = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
 
 
-            currentState = pSfOMXComponent->functions->ComponentGetState(pSfOMXComponent->hSFComponentExecoder);
+            currentState = pSfVideoImplement->functions->ComponentGetState(pSfVideoImplement->hSFComponentExecoder);
             LOG(SF_LOG_INFO, "VPU Current state = %X\r\n", currentState);
             switch(currentState)
             {
@@ -1145,18 +1166,18 @@ static OMX_ERRORTYPE SF_OMX_UseEGLImage(
     return OMX_ErrorNotImplemented;
 }
 
-static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *hComponent)
+static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *pSfOMXComponent)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     FunctionIn();
-
-    ret = InitComponentStructorCommon(hComponent);
+    ret = InitComponentStructorCommon(pSfOMXComponent);
     if (ret != OMX_ErrorNone)
     {
         goto EXIT;
     }
-    TestEncConfig *pTestEncConfig = (TestEncConfig *)hComponent->testConfig;
-    pTestEncConfig->stdMode = hComponent->bitFormat;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    TestEncConfig *pTestEncConfig = (TestEncConfig *)pSfVideoImplement->testConfig;
+    pTestEncConfig->stdMode = pSfVideoImplement->bitFormat;
     pTestEncConfig->frame_endian = VPU_FRAME_ENDIAN;
     pTestEncConfig->stream_endian = VPU_STREAM_ENDIAN;
     pTestEncConfig->source_endian = VPU_SOURCE_ENDIAN;
@@ -1173,18 +1194,18 @@ static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *hComponent)
     pTestEncConfig->cbcrInterleave = TRUE;
     pTestEncConfig->nv21 = FALSE;
 
-    hComponent->pOMXComponent->UseBuffer = &SF_OMX_UseBuffer;
-    hComponent->pOMXComponent->AllocateBuffer = &SF_OMX_AllocateBuffer;
-    hComponent->pOMXComponent->EmptyThisBuffer = &SF_OMX_EmptyThisBuffer;
-    hComponent->pOMXComponent->FillThisBuffer = &SF_OMX_FillThisBuffer;
-    hComponent->pOMXComponent->FreeBuffer = &SF_OMX_FreeBuffer;
-    // hComponent->pOMXComponent->ComponentTunnelRequest = &SF_OMX_ComponentTunnelRequest;
-    hComponent->pOMXComponent->GetParameter = &SF_OMX_GetParameter;
-    hComponent->pOMXComponent->SetParameter = &SF_OMX_SetParameter;
-    hComponent->pOMXComponent->GetConfig = &SF_OMX_GetConfig;
-    hComponent->pOMXComponent->SetConfig = &SF_OMX_SetConfig;
-    hComponent->pOMXComponent->SendCommand = &SF_OMX_SendCommand;
-    hComponent->pOMXComponent->GetState = &SF_OMX_GetState;
+    pSfOMXComponent->pOMXComponent->UseBuffer = &SF_OMX_UseBuffer;
+    pSfOMXComponent->pOMXComponent->AllocateBuffer = &SF_OMX_AllocateBuffer;
+    pSfOMXComponent->pOMXComponent->EmptyThisBuffer = &SF_OMX_EmptyThisBuffer;
+    pSfOMXComponent->pOMXComponent->FillThisBuffer = &SF_OMX_FillThisBuffer;
+    pSfOMXComponent->pOMXComponent->FreeBuffer = &SF_OMX_FreeBuffer;
+    // pSfOMXComponent->pOMXComponent->ComponentTunnelRequest = &SF_OMX_ComponentTunnelRequest;
+    pSfOMXComponent->pOMXComponent->GetParameter = &SF_OMX_GetParameter;
+    pSfOMXComponent->pOMXComponent->SetParameter = &SF_OMX_SetParameter;
+    pSfOMXComponent->pOMXComponent->GetConfig = &SF_OMX_GetConfig;
+    pSfOMXComponent->pOMXComponent->SetConfig = &SF_OMX_SetConfig;
+    pSfOMXComponent->pOMXComponent->SendCommand = &SF_OMX_SendCommand;
+    pSfOMXComponent->pOMXComponent->GetState = &SF_OMX_GetState;
 
 EXIT:
     FunctionOut();
@@ -1192,12 +1213,13 @@ EXIT:
     return ret;
 }
 
-static OMX_ERRORTYPE SF_OMX_ComponentClear(SF_OMX_COMPONENT *hComponent)
+static OMX_ERRORTYPE SF_OMX_ComponentClear(SF_OMX_COMPONENT *pSfOMXComponent)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
-    ComponentImpl *pSFComponentEncoder = (ComponentImpl *)hComponent->hSFComponentExecoder;
-    ComponentImpl *pSFComponentFeeder = (ComponentImpl *)hComponent->hSFComponentFeeder;
-    ComponentImpl *pSFComponentRender = (ComponentImpl *)hComponent->hSFComponentRender;
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    ComponentImpl *pSFComponentEncoder = (ComponentImpl *)pSfVideoImplement->hSFComponentExecoder;
+    ComponentImpl *pSFComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+    ComponentImpl *pSFComponentRender = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
 
     FunctionIn();
     if (pSFComponentEncoder == NULL || pSFComponentFeeder == NULL || pSFComponentRender == NULL)
@@ -1207,13 +1229,13 @@ static OMX_ERRORTYPE SF_OMX_ComponentClear(SF_OMX_COMPONENT *hComponent)
     pSFComponentEncoder->terminate = OMX_TRUE;
     pSFComponentFeeder->terminate = OMX_TRUE;
     pSFComponentRender->terminate = OMX_TRUE;
-    hComponent->functions->ComponentWait(hComponent->hSFComponentFeeder);
-    hComponent->functions->ComponentWait(hComponent->hSFComponentExecoder);
-    hComponent->functions->ComponentWait(hComponent->hSFComponentRender);
+    pSfVideoImplement->functions->ComponentWait(pSfVideoImplement->hSFComponentFeeder);
+    pSfVideoImplement->functions->ComponentWait(pSfVideoImplement->hSFComponentExecoder);
+    pSfVideoImplement->functions->ComponentWait(pSfVideoImplement->hSFComponentRender);
 
-    free(hComponent->pusBitCode);
-    hComponent->functions->ClearEncListenerContext(hComponent->lsnCtx);
-    ComponentClearCommon(hComponent);
+    free(pSfVideoImplement->pusBitCode);
+    pSfVideoImplement->functions->ClearEncListenerContext(pSfVideoImplement->lsnCtx);
+    ComponentClearCommon(pSfOMXComponent);
 EXIT:
     FunctionOut();
 
@@ -1226,8 +1248,8 @@ SF_OMX_COMPONENT sf_enc_encoder_h265 = {
     .pOMXComponent = NULL,
     .SF_OMX_ComponentConstructor = SF_OMX_ComponentConstructor,
     .SF_OMX_ComponentClear = SF_OMX_ComponentClear,
-    .functions = NULL,
-    .bitFormat = STD_HEVC,
+    // .bitFormat = STD_HEVC,
+    .componentImpl = NULL,
     .fwPath = "/lib/firmware/chagall.bin",
     .componentRule = "video_encoder.hevc"};
 
@@ -1237,7 +1259,7 @@ SF_OMX_COMPONENT sf_enc_encoder_h264 = {
     .pOMXComponent = NULL,
     .SF_OMX_ComponentConstructor = SF_OMX_ComponentConstructor,
     .SF_OMX_ComponentClear = SF_OMX_ComponentClear,
-    .functions = NULL,
-    .bitFormat = STD_AVC,
+    // .bitFormat = STD_AVC,
+    .componentImpl = NULL,
     .fwPath = "/lib/firmware/chagall.bin",
     .componentRule = "video_encoder.avc"};
