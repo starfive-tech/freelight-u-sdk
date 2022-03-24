@@ -34,6 +34,7 @@ linux_defconfig := $(confdir)/visionfive_defconfig
 vmlinux := $(linux_wrkdir)/vmlinux
 vmlinux_stripped := $(linux_wrkdir)/vmlinux-stripped
 vmlinux_bin := $(wrkdir)/vmlinux.bin
+module_install_path:=$(wrkdir)/module_install_path
 
 ifeq ($(TARGET_BOARD),U74)
 export TARGET_BOARD
@@ -172,6 +173,7 @@ $(buildroot_rootfs_wrkdir)/.config: $(buildroot_srcdir) $(buildroot_initramfs_ta
 
 $(buildroot_rootfs_ext): $(buildroot_srcdir) $(buildroot_rootfs_wrkdir)/.config $(target_gcc) $(buildroot_rootfs_config)
 	$(MAKE) -C $< RISCV=$(RISCV) PATH=$(RVPATH) O=$(buildroot_rootfs_wrkdir)
+	cp -r $(module_install_path)/lib/modules $(buildroot_rootfs_wrkdir)/target/lib/
 
 .PHONY: buildroot_rootfs
 buildroot_rootfs: $(buildroot_rootfs_ext)
@@ -219,7 +221,7 @@ $(vmlinux): $(linux_srcdir) $(linux_wrkdir)/.config $(target_gcc) $(buildroot_in
 		ARCH=riscv \
 		CROSS_COMPILE=$(CROSS_COMPILE) \
 		PATH=$(RVPATH) \
-		INSTALL_MOD_PATH=$(buildroot_initramfs_sysroot) \
+		INSTALL_MOD_PATH=$(module_install_path) \
 		modules_install
 
 # vpu building depend on the $(vmlinux), $(vmlinux) depend on $(buildroot_initramfs_sysroot)
@@ -268,6 +270,7 @@ $(initramfs).d: $(buildroot_initramfs_sysroot) $(buildroot_initramfs_tar)
 	touch $@
 
 $(initramfs): $(buildroot_initramfs_sysroot) $(vmlinux) $(buildroot_initramfs_tar)
+	cp -r $(module_install_path)/lib/modules $(buildroot_initramfs_sysroot)/lib/
 	cd $(linux_wrkdir) && \
 		$(linux_srcdir)/usr/gen_initramfs.sh \
 		-l $(initramfs).d \
@@ -421,7 +424,7 @@ UBOOT_END=473087
 UBOOT_SIZE=2047
 UENV_START=473088
 UENV_END=475135
-$(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
+$(vfat_image): $(fit) $(confdir)/u74_uEnv.txt $(confdir)/uEnv.txt
 	@if [ `du --apparent-size --block-size=512 $(uboot) | cut -f 1` -ge $(UBOOT_SIZE) ]; then \
 		echo "Uboot is too large for partition!!\nReduce uboot or increase partition size"; \
 		rm $(flash_image); exit 1; fi
@@ -429,6 +432,7 @@ $(vfat_image): $(fit) $(confdir)/u74_uEnv.txt
 	$(MKFS_VFAT) $(vfat_image)
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(fit) ::hifiveu.fit
 	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/u74_uEnv.txt ::u74_uEnv.txt
+	PATH=$(RVPATH) MTOOLS_SKIP_CHECK=1 mcopy -i $(vfat_image) $(confdir)/uEnv.txt ::uEnv.txt
 else
 
 VFAT_START=4096
