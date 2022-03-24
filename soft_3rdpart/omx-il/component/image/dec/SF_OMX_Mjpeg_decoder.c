@@ -441,6 +441,8 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                 switch (pOutputPort->format.video.eColorFormat)
                 {
                     case OMX_COLOR_FormatYUV420Planar:
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
                     case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
@@ -481,13 +483,17 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         switch (portFormat->eColorFormat)
         {
         case OMX_COLOR_FormatYUV420Planar:
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
+            break;
         case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
             decConfig->cbcrInterleave = CBCR_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
+            break;
         case OMX_COLOR_FormatYUV420PackedSemiPlanar: //NV21
             decConfig->cbcrInterleave = CRCB_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
