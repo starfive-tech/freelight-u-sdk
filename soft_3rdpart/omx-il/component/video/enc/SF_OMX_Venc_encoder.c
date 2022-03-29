@@ -814,6 +814,7 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     TestEncConfig *testConfig = NULL;
     CNMComponentConfig *config = NULL;
     Uint32 sizeInWord;
+    Int32 alignedWidth = 0, alignedHeight = 0;
     char *fwPath = NULL;
     SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
 
@@ -894,14 +895,19 @@ static OMX_ERRORTYPE InitEncoder(SF_OMX_COMPONENT *pSfOMXComponent)
     if (pSfVideoImplement->bitFormat == STD_AVC)
     {
         config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfVideoImplement->AVCComponent[1].nPFrames;
+        alignedWidth = (config->encOpenParam.picWidth + 15) & ~15;
+        alignedHeight= (config->encOpenParam.picHeight+ 15) & ~15;
+        config->encOpenParam.EncStdParam.waveParam.confWinRight = alignedWidth - config->encOpenParam.picWidth;
+        config->encOpenParam.EncStdParam.waveParam.confWinBot = alignedHeight - config->encOpenParam.picHeight;
     }
     else if (pSfVideoImplement->bitFormat == STD_HEVC)
     {
         config->encOpenParam.EncStdParam.waveParam.intraPeriod = pSfVideoImplement->HEVCComponent[1].nKeyFrameInterval;
     }
-    LOG(SF_LOG_INFO, "Get width = %d, height = %d frameRateInfo = %d intraPeriod = %d bitrate = %d\r\n",
+    LOG(SF_LOG_INFO, "Get width = %d, height = %d frameRateInfo = %d intraPeriod = %d bitrate = %d confWinRight = %d confWinBot = %d\r\n",
         config->encOpenParam.picWidth, config->encOpenParam.picHeight, config->encOpenParam.frameRateInfo,
-        config->encOpenParam.EncStdParam.waveParam.intraPeriod, config->encOpenParam.bitRate);
+        config->encOpenParam.EncStdParam.waveParam.intraPeriod, config->encOpenParam.bitRate,
+        config->encOpenParam.EncStdParam.waveParam.confWinRight, config->encOpenParam.EncStdParam.waveParam.confWinBot);
 
     pSfVideoImplement->hSFComponentExecoder = pSfVideoImplement->functions->ComponentCreate("wave_encoder", config);
     pSfVideoImplement->hSFComponentFeeder = pSfVideoImplement->functions->ComponentCreate("yuvfeeder", config);
