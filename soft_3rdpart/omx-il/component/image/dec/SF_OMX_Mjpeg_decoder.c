@@ -865,41 +865,23 @@ static void ProcessThread(void *args)
     decOP->outputFormat = pSfCodaj12Implement->frameFormat; //decConfig->subsample;
     decOP->intrEnableBit = ((1 << INT_JPU_DONE) | (1 << INT_JPU_ERROR) | (1 << INT_JPU_BIT_BUF_EMPTY));
 
-    printf("streamEndian = %x  \n"
-           "frameEndian = %x   \n       "
-           "bitstreamBuffer = %x   \n   "
-           "bitstreamBufferSize = %x  \n"
-           "pBitStream = %x  \n         "
-           "chromaInterleave = %x  \n   "
-           "packedFormat = %x  \n       "
-           "roiEnable = %x   \n         "
-           "roiOffsetX = %x   \n        "
-           "roiOffsetY = %x  \n         "
-           "roiWidth = %x  \n           "
-           "roiHeight = %x   \n         "
-           "rotation = %x   \n          "
-           "mirror  = %x   \n           "
-           "pixelJustification = %x  \n "
-           "outputFormat = %x   \n "
-           "intrEnableBit = %x   \n ",
-           decOP->streamEndian,
-           decOP->frameEndian,
-           decOP->bitstreamBuffer,
-           decOP->bitstreamBufferSize,
-           //set virtual address map
-           decOP->pBitStream,
-           decOP->chromaInterleave,
-           decOP->packedFormat,
-           decOP->roiEnable,
-           decOP->roiOffsetX,
-           decOP->roiOffsetY,
-           decOP->roiWidth,
-           decOP->roiHeight,
-           decOP->rotation,
-           decOP->mirror,
-           decOP->pixelJustification,
-           decOP->outputFormat,
-           decOP->intrEnableBit);
+    LOG(SF_LOG_DEBUG, "streamEndian = %x\r\n", decOP->streamEndian);
+    LOG_APPEND(SF_LOG_DEBUG, "frameEndian = %x\r\n", decOP->frameEndian);
+    LOG_APPEND(SF_LOG_DEBUG, "bitstreamBuffer = %x\r\n", decOP->bitstreamBuffer);
+    LOG_APPEND(SF_LOG_DEBUG, "bitstreamBufferSize = %x\r\n", decOP->bitstreamBufferSize);
+    LOG_APPEND(SF_LOG_DEBUG, "pBitStream = %x\r\n", decOP->pBitStream);
+    LOG_APPEND(SF_LOG_DEBUG, "chromaInterleave = %x\r\n", decOP->chromaInterleave);
+    LOG_APPEND(SF_LOG_DEBUG, "packedFormat = %x\r\n", decOP->packedFormat);
+    LOG_APPEND(SF_LOG_DEBUG, "roiEnable = %x\r\n", decOP->roiEnable);
+    LOG_APPEND(SF_LOG_DEBUG, "roiOffsetX = %x\r\n", decOP->roiOffsetX);
+    LOG_APPEND(SF_LOG_DEBUG, "roiOffsetY = %x\r\n", decOP->roiOffsetY);
+    LOG_APPEND(SF_LOG_DEBUG, "roiWidth = %x\r\n", decOP->roiWidth);
+    LOG_APPEND(SF_LOG_DEBUG, "roiHeight = %x\r\n", decOP->roiHeight);
+    LOG_APPEND(SF_LOG_DEBUG, "rotation = %x\r\n", decOP->rotation);
+    LOG_APPEND(SF_LOG_DEBUG, "mirror = %x\r\n", decOP->mirror);
+    LOG_APPEND(SF_LOG_DEBUG, "pixelJustification = %x\r\n", decOP->pixelJustification);
+    LOG_APPEND(SF_LOG_DEBUG, "outputFormat = %x\r\n", decOP->outputFormat);
+    LOG_APPEND(SF_LOG_DEBUG, "intrEnableBit = %x\r\n", decOP->intrEnableBit);
 
     ret = pSfCodaj12Implement->functions->JPU_DecOpen(&handle, decOP);
     if (ret != JPG_RET_SUCCESS)
@@ -1381,7 +1363,7 @@ static OMX_ERRORTYPE SF_OMX_ComponentClear(SF_OMX_COMPONENT *pSfOMXComponent)
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     SF_CODAJ12_IMPLEMEMT *pSfCodaj12Implement = pSfOMXComponent->componentImpl;
     jpu_buffer_t *vbStream = &pSfCodaj12Implement->vbStream;
-    JpgDecHandle handle = &pSfCodaj12Implement->handle;
+    JpgDecHandle handle = pSfCodaj12Implement->handle;
     FunctionIn();
 ERR_DEC_OPEN:
     ret = pSfCodaj12Implement->functions->JPU_DecClose(handle);
