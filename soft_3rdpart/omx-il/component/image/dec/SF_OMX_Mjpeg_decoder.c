@@ -594,6 +594,23 @@ static OMX_ERRORTYPE SF_OMX_GetConfig(
         break;
     }
 
+    case OMX_IndexConfigCommonMirror:
+    {
+        OMX_CONFIG_MIRRORTYPE *mirrParam = (OMX_CONFIG_MIRRORTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(mirrParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            mirrParam->eMirror = decConfig->mirror;
+            LOG(SF_LOG_INFO, "Get Mirror %d \r\n", decConfig->mirror);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support Mirror config\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
     default:
         break;
     }
@@ -664,6 +681,23 @@ static OMX_ERRORTYPE SF_OMX_SetConfig(
         else
         {
             LOG(SF_LOG_WARN, "Only support set Rotation config to output port\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
+    case OMX_IndexConfigCommonMirror:
+    {
+        OMX_CONFIG_MIRRORTYPE *mirrParam = (OMX_CONFIG_MIRRORTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(mirrParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            decConfig->mirror = mirrParam->eMirror;
+            LOG(SF_LOG_INFO, "Set Mirror %d \r\n", decConfig->mirror);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support Mirror config\r\n");
             ret = OMX_ErrorBadParameter;
         }
         break;
