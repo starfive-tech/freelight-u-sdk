@@ -48,6 +48,7 @@ typedef struct DecodeTestContext
     OMX_U32 RoiWidth;
     OMX_U32 RoiHeight;
     OMX_U32 Rotation;
+    OMX_U32 Mirror;
 } DecodeTestContext;
 DecodeTestContext *decodeTestContext;
 static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERHEADERTYPE *pInputBuffer);
@@ -209,9 +210,10 @@ int main(int argc, char **argv)
         {"format", required_argument, NULL, 'f'},
         {"roi", required_argument, NULL, 'c'},
         {"rotation", required_argument, NULL, 'r'},
+        {"mirror", required_argument, NULL, 'm'},
         {NULL, no_argument, NULL, 0},
     };
-    char *shortOpt = "i:o:f:c:r:";
+    char *shortOpt = "i:o:f:c:r:m:";
     OMX_U32 c;
     OMX_S32 l;
     OMX_STRING val;
@@ -282,6 +284,9 @@ int main(int argc, char **argv)
             break;
         case 'r':
             decodeTestContext->Rotation = atoi(optarg);
+            break;
+        case 'm':
+            decodeTestContext->Mirror = atoi(optarg);
             break;
         case 'h':
         default:
@@ -415,6 +420,17 @@ int main(int argc, char **argv)
         OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonRotate, &RotatConfig);
         RotatConfig.nRotation = decodeTestContext->Rotation;
         OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonRotate, &RotatConfig);
+    }
+
+    /* Set Mirror config setting*/
+    if(decodeTestContext->Mirror)
+    {
+        OMX_CONFIG_MIRRORTYPE MirrorConfig;
+        OMX_INIT_STRUCTURE(MirrorConfig);
+        MirrorConfig.nPortIndex = 1;
+        OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonMirror, &MirrorConfig);
+        MirrorConfig.eMirror = decodeTestContext->Mirror;
+        OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonMirror, &MirrorConfig);
     }
 
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
