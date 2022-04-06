@@ -49,6 +49,8 @@ typedef struct DecodeTestContext
     OMX_U32 RoiHeight;
     OMX_U32 Rotation;
     OMX_U32 Mirror;
+    OMX_U32 ScaleFactorH;
+    OMX_U32 ScaleFactorV;
 } DecodeTestContext;
 DecodeTestContext *decodeTestContext;
 static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERHEADERTYPE *pInputBuffer);
@@ -211,6 +213,8 @@ int main(int argc, char **argv)
         {"roi", required_argument, NULL, 'c'},
         {"rotation", required_argument, NULL, 'r'},
         {"mirror", required_argument, NULL, 'm'},
+        {"scaleH", required_argument, NULL, 'H'},
+        {"scaleV", required_argument, NULL, 'V'},
         {NULL, no_argument, NULL, 0},
     };
     char *shortOpt = "i:o:f:c:r:m:";
@@ -287,6 +291,12 @@ int main(int argc, char **argv)
             break;
         case 'm':
             decodeTestContext->Mirror = atoi(optarg);
+            break;
+        case 'H':
+            decodeTestContext->ScaleFactorH = atoi(optarg);
+            break;
+        case 'V':
+            decodeTestContext->ScaleFactorV = atoi(optarg);
             break;
         case 'h':
         default:
@@ -431,6 +441,19 @@ int main(int argc, char **argv)
         OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonMirror, &MirrorConfig);
         MirrorConfig.eMirror = decodeTestContext->Mirror;
         OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonMirror, &MirrorConfig);
+    }
+
+    /* Set Scale config setting*/
+    if(decodeTestContext->ScaleFactorH || decodeTestContext->ScaleFactorV)
+    {
+        OMX_CONFIG_SCALEFACTORTYPE ScaleConfig;
+        OMX_INIT_STRUCTURE(ScaleConfig);
+        ScaleConfig.nPortIndex = 1;
+        OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonScale, &ScaleConfig);
+        /* in Q16 format */
+        ScaleConfig.xWidth = (1 << 16) >> (decodeTestContext->ScaleFactorH & 0x3);
+        ScaleConfig.xHeight = (1 << 16) >> (decodeTestContext->ScaleFactorV & 0x3);
+        OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonScale, &ScaleConfig);
     }
 
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
