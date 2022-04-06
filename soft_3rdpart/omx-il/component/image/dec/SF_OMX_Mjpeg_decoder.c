@@ -539,9 +539,48 @@ static OMX_ERRORTYPE SF_OMX_GetConfig(
     FunctionIn();
     if (hComponent == NULL)
     {
-        return OMX_ErrorBadParameter;
+        ret = OMX_ErrorBadParameter;
+        goto EXIT;
     }
 
+    if (pComponentConfigStructure == NULL)
+    {
+        ret = OMX_ErrorBadParameter;
+        goto EXIT;
+    }
+
+    LOG(SF_LOG_INFO, "Get config on index %X\r\n", nIndex);
+    OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
+    SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_CODAJ12_IMPLEMEMT *pSfMjpegImplement = (SF_CODAJ12_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+
+    switch ((OMX_U32)nIndex)
+    {
+    case OMX_IndexConfigCommonOutputCrop:
+    {
+        OMX_CONFIG_RECTTYPE *rectParam = (OMX_CONFIG_RECTTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(rectParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            rectParam->nLeft = decConfig->roiOffsetX;
+            rectParam->nTop = decConfig->roiOffsetY;
+            rectParam->nWidth = decConfig->roiWidth;
+            rectParam->nHeight = decConfig->roiHeight;
+            LOG(SF_LOG_INFO, "Get OutputCrop left %d top %d width %d height %d \r\n",
+                decConfig->roiOffsetX, decConfig->roiOffsetY, decConfig->roiWidth, decConfig->roiHeight);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support OutputCrop param\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+EXIT:
     FunctionOut();
 
     return ret;
@@ -557,8 +596,49 @@ static OMX_ERRORTYPE SF_OMX_SetConfig(
     FunctionIn();
     if (hComponent == NULL)
     {
-        return OMX_ErrorBadParameter;
+        ret = OMX_ErrorBadParameter;
+        goto EXIT;
     }
+
+    if (pComponentConfigStructure == NULL)
+    {
+        ret = OMX_ErrorBadParameter;
+        goto EXIT;
+    }
+
+    LOG(SF_LOG_INFO, "Set config on index %X\r\n", nIndex);
+    OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
+    SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_CODAJ12_IMPLEMEMT *pSfMjpegImplement = (SF_CODAJ12_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+
+    switch ((OMX_U32)nIndex)
+    {
+    case OMX_IndexConfigCommonOutputCrop:
+    {
+        OMX_CONFIG_RECTTYPE *rectParam = (OMX_CONFIG_RECTTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(rectParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            decConfig->roiOffsetX = rectParam->nLeft;
+            decConfig->roiOffsetY = rectParam->nTop;
+            decConfig->roiWidth = rectParam->nWidth;
+            decConfig->roiHeight = rectParam->nHeight;
+            decConfig->roiEnable = OMX_TRUE;
+            LOG(SF_LOG_INFO, "Set OutputCrop left %d top %d width %d height %d \r\n",
+                decConfig->roiOffsetX, decConfig->roiOffsetY, decConfig->roiWidth, decConfig->roiHeight);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only support set OutputCrop config to output port\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+EXIT:
     FunctionOut();
 
     return ret;
