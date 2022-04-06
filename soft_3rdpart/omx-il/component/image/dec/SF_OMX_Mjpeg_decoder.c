@@ -611,6 +611,25 @@ static OMX_ERRORTYPE SF_OMX_GetConfig(
         break;
     }
 
+    case OMX_IndexConfigCommonScale:
+    {
+        OMX_CONFIG_SCALEFACTORTYPE *scaleParam = (OMX_CONFIG_SCALEFACTORTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(scaleParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            /* In Q16 format */
+            scaleParam->xWidth = (1 << 16) >> decConfig->iHorScaleMode;
+            scaleParam->xHeight = (1 << 16) >> decConfig->iVerScaleMode;
+            LOG(SF_LOG_INFO, "Get scale  %d(Q16),%d(Q16) \r\n", scaleParam->xWidth, scaleParam->xHeight);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support Scale config\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
     default:
         break;
     }
@@ -698,6 +717,44 @@ static OMX_ERRORTYPE SF_OMX_SetConfig(
         else
         {
             LOG(SF_LOG_WARN, "Only output port support Mirror config\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
+    case OMX_IndexConfigCommonScale:
+    {
+        OMX_CONFIG_SCALEFACTORTYPE *scaleParam = (OMX_CONFIG_SCALEFACTORTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        OMX_U32 x;
+        if(scaleParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            /* In Q16 format */
+            x = (1 << 16) / (scaleParam->xWidth);
+            if(x >= 8)
+                decConfig->iHorScaleMode = 3;
+            else if(x >= 4)
+                decConfig->iHorScaleMode = 2;
+            else if(x >= 2)
+                decConfig->iHorScaleMode = 1;
+            else
+                decConfig->iHorScaleMode = 0;
+
+            x = (1 << 16) / (scaleParam->xHeight);
+            if(x >= 8)
+                decConfig->iVerScaleMode = 3;
+            else if(x >= 4)
+                decConfig->iVerScaleMode = 2;
+            else if(x >= 2)
+                decConfig->iVerScaleMode = 1;
+            else
+                decConfig->iVerScaleMode = 0;
+
+            LOG(SF_LOG_INFO, "Set scale H 1/%d, V 1/%d \r\n", 1 << decConfig->iHorScaleMode, 1 << scaleParam->xHeight);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support Scale config\r\n");
             ret = OMX_ErrorBadParameter;
         }
         break;
