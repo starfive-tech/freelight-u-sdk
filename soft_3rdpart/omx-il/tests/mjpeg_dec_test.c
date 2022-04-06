@@ -43,6 +43,10 @@ typedef struct DecodeTestContext
     OMX_BUFFERHEADERTYPE *pOutputBufferArray[64];
     AVFormatContext *avContext;
     int msgid;
+    OMX_S32 RoiLeft;
+    OMX_S32 RoiTop;
+    OMX_U32 RoiWidth;
+    OMX_U32 RoiHeight;
 } DecodeTestContext;
 DecodeTestContext *decodeTestContext;
 static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERHEADERTYPE *pInputBuffer);
@@ -202,11 +206,13 @@ int main(int argc, char **argv)
         {"output", required_argument, NULL, 'o'},
         {"input", required_argument, NULL, 'i'},
         {"format", required_argument, NULL, 'f'},
+        {"roi", required_argument, NULL, 'c'},
         {NULL, no_argument, NULL, 0},
     };
-    char *shortOpt = "i:o:f:";
+    char *shortOpt = "i:o:f:c:";
     OMX_U32 c;
     OMX_S32 l;
+    OMX_STRING val;
 
     // if (argc == 0)
     // {
@@ -237,6 +243,40 @@ int main(int argc, char **argv)
         case 'f':
             printf("format: %s\r\n", optarg);
             memcpy(decodeTestContext->sOutputFormat, optarg, strlen(optarg));
+            break;
+        case 'c':
+            val = strtok(optarg, ",");
+            if (val == NULL) {
+                printf("Invalid ROI option: %s\n", optarg);
+                return -1;
+            }
+            else {
+                decodeTestContext->RoiLeft = atoi(val);
+            }
+            val = strtok(NULL, ",");
+            if (val == NULL) {
+                printf("Invalid ROI option: %s\n", optarg);
+                return -1;
+            }
+            else {
+                decodeTestContext->RoiTop = atoi(val);
+            }
+            val = strtok(NULL, ",");
+            if (val == NULL) {
+                printf("Invalid ROI option: %s\n", optarg);
+                return -1;
+            }
+            else {
+                decodeTestContext->RoiWidth = atoi(val);
+            }
+            val = strtok(NULL, ",");
+            if (val == NULL) {
+                printf("Invalid ROI option: %s\n", optarg);
+                return -1;
+            }
+            else {
+                decodeTestContext->RoiHeight = atoi(val);
+            }
             break;
         case 'h':
         default:
@@ -346,6 +386,17 @@ int main(int argc, char **argv)
         goto end;
     }
     OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
+
+    /* Set Roi config setting*/
+    OMX_CONFIG_RECTTYPE RectConfig;
+    OMX_INIT_STRUCTURE(RectConfig);
+    RectConfig.nPortIndex = 1;
+    OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
+    RectConfig.nLeft = decodeTestContext->RoiLeft;
+    RectConfig.nTop = decodeTestContext->RoiTop;
+    RectConfig.nWidth = decodeTestContext->RoiWidth;
+    RectConfig.nHeight = decodeTestContext->RoiHeight;
+    OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
 
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
