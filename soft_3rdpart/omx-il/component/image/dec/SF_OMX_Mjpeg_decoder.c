@@ -577,6 +577,23 @@ static OMX_ERRORTYPE SF_OMX_GetConfig(
         break;
     }
 
+    case OMX_IndexConfigCommonRotate:
+    {
+        OMX_CONFIG_ROTATIONTYPE *rotatParam = (OMX_CONFIG_ROTATIONTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(rotatParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            rotatParam->nRotation = decConfig->rotation;
+            LOG(SF_LOG_INFO, "Get Rotation %d \r\n", decConfig->rotation);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only output port support Rotation config\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
     default:
         break;
     }
@@ -630,6 +647,23 @@ static OMX_ERRORTYPE SF_OMX_SetConfig(
         else
         {
             LOG(SF_LOG_WARN, "Only support set OutputCrop config to output port\r\n");
+            ret = OMX_ErrorBadParameter;
+        }
+        break;
+    }
+
+    case OMX_IndexConfigCommonRotate:
+    {
+        OMX_CONFIG_ROTATIONTYPE *rotatParam = (OMX_CONFIG_ROTATIONTYPE *)pComponentConfigStructure;
+        DecConfigParam *decConfig = pSfMjpegImplement->config;
+        if(rotatParam->nPortIndex == (OMX_U32)(OMX_OUTPUT_PORT_INDEX))
+        {
+            decConfig->rotation = rotatParam->nRotation;
+            LOG(SF_LOG_INFO, "Set Rotation %d to output port\r\n", decConfig->rotation);
+        }
+        else
+        {
+            LOG(SF_LOG_WARN, "Only support set Rotation config to output port\r\n");
             ret = OMX_ErrorBadParameter;
         }
         break;
