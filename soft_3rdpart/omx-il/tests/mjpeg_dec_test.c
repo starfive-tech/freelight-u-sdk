@@ -47,6 +47,7 @@ typedef struct DecodeTestContext
     OMX_S32 RoiTop;
     OMX_U32 RoiWidth;
     OMX_U32 RoiHeight;
+    OMX_U32 Rotation;
 } DecodeTestContext;
 DecodeTestContext *decodeTestContext;
 static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERHEADERTYPE *pInputBuffer);
@@ -207,9 +208,10 @@ int main(int argc, char **argv)
         {"input", required_argument, NULL, 'i'},
         {"format", required_argument, NULL, 'f'},
         {"roi", required_argument, NULL, 'c'},
+        {"rotation", required_argument, NULL, 'r'},
         {NULL, no_argument, NULL, 0},
     };
-    char *shortOpt = "i:o:f:c:";
+    char *shortOpt = "i:o:f:c:r:";
     OMX_U32 c;
     OMX_S32 l;
     OMX_STRING val;
@@ -277,6 +279,9 @@ int main(int argc, char **argv)
             else {
                 decodeTestContext->RoiHeight = atoi(val);
             }
+            break;
+        case 'r':
+            decodeTestContext->Rotation = atoi(optarg);
             break;
         case 'h':
         default:
@@ -388,15 +393,29 @@ int main(int argc, char **argv)
     OMX_SetParameter(hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
 
     /* Set Roi config setting*/
-    OMX_CONFIG_RECTTYPE RectConfig;
-    OMX_INIT_STRUCTURE(RectConfig);
-    RectConfig.nPortIndex = 1;
-    OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
-    RectConfig.nLeft = decodeTestContext->RoiLeft;
-    RectConfig.nTop = decodeTestContext->RoiTop;
-    RectConfig.nWidth = decodeTestContext->RoiWidth;
-    RectConfig.nHeight = decodeTestContext->RoiHeight;
-    OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
+    if(decodeTestContext->RoiWidth && decodeTestContext->RoiHeight)
+    {
+        OMX_CONFIG_RECTTYPE RectConfig;
+        OMX_INIT_STRUCTURE(RectConfig);
+        RectConfig.nPortIndex = 1;
+        OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
+        RectConfig.nLeft = decodeTestContext->RoiLeft;
+        RectConfig.nTop = decodeTestContext->RoiTop;
+        RectConfig.nWidth = decodeTestContext->RoiWidth;
+        RectConfig.nHeight = decodeTestContext->RoiHeight;
+        OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonOutputCrop, &RectConfig);
+    }
+
+    /* Set Rotation config setting*/
+    if(decodeTestContext->Rotation)
+    {
+        OMX_CONFIG_ROTATIONTYPE RotatConfig;
+        OMX_INIT_STRUCTURE(RotatConfig);
+        RotatConfig.nPortIndex = 1;
+        OMX_GetConfig(hComponentDecoder, OMX_IndexConfigCommonRotate, &RotatConfig);
+        RotatConfig.nRotation = decodeTestContext->Rotation;
+        OMX_SetConfig(hComponentDecoder, OMX_IndexConfigCommonRotate, &RotatConfig);
+    }
 
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
 
