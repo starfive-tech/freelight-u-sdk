@@ -175,6 +175,7 @@ typedef struct PortContainerES {
     BOOL            last;
     Uint32          type;
     /* ---- DO NOT TOUCH THE ABOVE FIELDS ---- */
+    int             bufferType;
     vpu_buffer_t    buf;
     Uint32          size;
     Uint32          streamBufFull;

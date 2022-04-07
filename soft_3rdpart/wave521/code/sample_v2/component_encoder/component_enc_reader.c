@@ -186,7 +186,11 @@ static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* 
 #ifdef USE_FEEDING_METHOD_BUFFER
                         osal_memcpy(output->pBuffer, buf, readSize);
                         output->nFilledLen = readSize;
-                        if (srcData->last == TRUE)
+                        if (srcData->bufferType == RECON_IDX_FLAG_HEADER_ONLY)
+                        {
+                            output->nFlags = 0x80;
+                        }
+                        else if (srcData->last == TRUE)
                         {
                             output->nFlags = 0x01;
                         }
@@ -224,7 +228,11 @@ static BOOL ExecuteReader(ComponentImpl* com, PortContainer* in, PortContainer* 
                 if (srcData->streamBufFull == TRUE) {
                     srcData->buf.phys_addr = 0;
                 }
-                if (srcData->last == TRUE)
+                if (srcData->bufferType == RECON_IDX_FLAG_HEADER_ONLY)
+                {
+                    output->nFlags = 0x80;
+                }
+                else if (srcData->last == TRUE)
                 {
                     output->nFlags = 0x01;
                 }
