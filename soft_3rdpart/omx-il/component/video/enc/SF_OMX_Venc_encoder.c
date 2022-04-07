@@ -82,6 +82,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
         LOG(SF_LOG_PERF, "OMX empty one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
         pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
+        ClearOMXBuffer(pSfOMXComponent, pOMXBuffer);
         break;
     case COMPONENT_EVENT_ENC_FILL_BUFFER_DONE:
     {
@@ -123,6 +124,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         ComponentImpl *pRendererComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
         LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
                                                     pSfOMXComponent->portDefinition[1].nBufferCountActual);
+        ClearOMXBuffer(pSfOMXComponent, pOMXBuffer);
     }
     break;
     case COMPONENT_EVENT_ENC_REGISTER_FB:
@@ -183,6 +185,9 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     free(pPortContainerExternal);
     pFeederComponent->pause = OMX_FALSE;
 
+    ret = StoreOMXBuffer(pSfOMXComponent, pBuffer);
+    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
+
 EXIT:
     FunctionOut();
 
@@ -224,13 +229,15 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
                                                         pSfOMXComponent->portDefinition[1].nBufferCountActual);
     free(pPortContainerExternal);
     pRendererComponent->pause = OMX_FALSE;
+    ret = StoreOMXBuffer(pSfOMXComponent, pBuffer);
+    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
 EXIT:
     FunctionOut();
 
     return ret;
 }
 
-static OMX_U64 nOutBufIndex = 0;
+static OMX_U64 nInputBufIndex = 0;
 
 static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_IN OMX_HANDLETYPE hComponent,
@@ -243,7 +250,8 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
-
+    SF_WAVE5_IMPLEMEMT *pSfVideoImplement = (SF_WAVE5_IMPLEMEMT *)pSfOMXComponent->componentImpl;
+    ComponentImpl *pComponentFeeder = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
     FunctionIn();
 
     if (hComponent == NULL)
@@ -251,7 +259,11 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
         ret = OMX_ErrorBadParameter;
         goto EXIT;
     }
-
+    if (pSfVideoImplement->functions->AttachDMABuffer(pComponentFeeder, (Uint64)pBuffer, nSizeBytes) == FALSE)
+    {
+        LOG(SF_LOG_ERR, "Failed to attach dma buffer\r\n");
+        return OMX_ErrorInsufficientResources;
+    }
     OMX_BUFFERHEADERTYPE *temp_bufferHeader = (OMX_BUFFERHEADERTYPE *)malloc(sizeof(OMX_BUFFERHEADERTYPE));
     if (temp_bufferHeader == NULL)
     {
@@ -263,8 +275,12 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
     temp_bufferHeader->pAppPrivate = pAppPrivate;
     temp_bufferHeader->pBuffer = pBuffer;
     *ppBufferHdr = temp_bufferHeader;
-
-    ret = StoreOMXBuffer(pSfOMXComponent, temp_bufferHeader);
+    if (nPortIndex == 0)
+    {
+        temp_bufferHeader->pInputPortPrivate = (OMX_PTR)nInputBufIndex;
+        nInputBufIndex ++;
+    }
+    LOG(SF_LOG_INFO, "pBuffer address = %p, nInputBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (int)temp_bufferHeader->pInputPortPrivate);
 EXIT:
     FunctionOut();
 
@@ -320,8 +336,8 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
         else
         {
             LOG(SF_LOG_PERF, "Use DMA buffer\r\n");
-            temp_bufferHeader->pInputPortPrivate = (OMX_PTR)nOutBufIndex;
-            nOutBufIndex ++;
+            temp_bufferHeader->pInputPortPrivate = (OMX_PTR)nInputBufIndex;
+            nInputBufIndex ++;
         }
     }
     else if (nPortIndex == 1)
@@ -339,8 +355,6 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     }
     *ppBuffer = temp_bufferHeader;
     LOG(SF_LOG_INFO, "pBuffer address = %p\r\n", temp_bufferHeader->pBuffer);
-    ret = StoreOMXBuffer(pSfOMXComponent, temp_bufferHeader);
-    LOG(SF_LOG_PERF, "alloc size = %d, buffer count = %d\r\n",nSizeBytes, GetOMXBufferCount(pSfOMXComponent));
 
     FunctionOut();
 
@@ -538,6 +552,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             {
                 LOG(SF_LOG_INFO, "Set input buffer count = %d\r\n", nBufferCountActual);
                 ComponentImpl *pFeederComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentFeeder;
+                pSfVideoImplement->functions->SetFeederTotalBufferNumber(pFeederComponent, nBufferCountActual);
                 pSfVideoImplement->functions->ComponentPortDestroy(&pFeederComponent->srcPort);
                 pSfVideoImplement->functions->ComponentPortCreate(&pFeederComponent->srcPort, pSfVideoImplement->hSFComponentFeeder,
                                                                 nBufferCountActual, sizeof(PortContainerExternal));
@@ -546,7 +561,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             memcpy(&pSfOMXComponent->portDefinition[portIndex], pPortDefinition, pPortDefinition->nSize);
             pInputPort->format.video.nStride = width;
             pInputPort->format.video.nSliceHeight = height;
-            pInputPort->nBufferSize = width * height * 2;
+            pInputPort->nBufferSize = width * height * 3 / 2;
             LOG(SF_LOG_INFO, "Set eColorFormat to %d\r\n", eColorFormat);
             switch (eColorFormat)
             {
@@ -1113,7 +1128,6 @@ static OMX_ERRORTYPE SF_OMX_FreeBuffer(
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
     FunctionIn();
-    ClearOMXBuffer(pSfOMXComponent, pBufferHdr);
     LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
     free(pBufferHdr);
 

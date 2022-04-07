@@ -1343,6 +1343,25 @@ BOOL AllocateDecFrameBuffer(
     return TRUE;
 }
 
+BOOL AttachFBMemory(Uint32 coreIdx, vpu_buffer_t *pFbMem, FrameBuffer* pFb, void *pBuffer, Uint32 size)
+{
+    pFbMem->size = size;
+    pFbMem->virt_addr = (unsigned long)pBuffer;
+    
+
+    vdi_virt_to_phys(coreIdx, pFbMem);
+    vdi_attach_dma_memory(coreIdx, pFbMem);
+    VLOG(INFO, "base addr = %lx virt addr= %lx phys addr = %x\r\n", pFbMem->base, pFbMem->virt_addr, pFbMem->phys_addr);
+    
+    pFb->bufY = pFbMem->phys_addr;
+    pFb->bufCb = (PhysicalAddress)-1;
+    pFb->bufCr = (PhysicalAddress)-1;
+    pFb->size = size;
+    pFb->updateFbInfo = TRUE;
+    
+    return TRUE;
+}
+
 BOOL AllocFBMemory(Uint32 coreIdx, vpu_buffer_t *pFbMem, FrameBuffer* pFb,Uint32 memSize, Uint32 memNum, Int32 memTypes, Int32 instIndex)
 {
     Uint32 i =0;

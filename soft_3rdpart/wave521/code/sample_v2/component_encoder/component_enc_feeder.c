@@ -126,6 +126,92 @@ static CNMComponentParamRet SetParameterYuvFeeder(ComponentImpl* from, Component
     return (result == TRUE) ? CNM_COMPONENT_PARAM_SUCCESS : CNM_COMPONENT_PARAM_FAILURE;
 }
 
+BOOL GetAllocInfo(ComponentImpl* com, Uint32 size)
+{
+    YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
+    EncOpenParam            encOpenParam = ctx->encOpenParam;
+    FrameBufferAllocInfo    fbAllocInfo;
+    Uint32                  fbWidth = 0;
+    Uint32                  fbHeight = 0;
+    Uint32                  fbStride = 0;
+    SRC_FB_TYPE             srcFbType = SRC_FB_TYPE_YUV;
+    TiledMapType            mapType;
+
+    osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
+    //Buffers for source frames
+    if (PRODUCT_ID_W_SERIES(ctx->productID)) {
+        fbWidth = VPU_ALIGN8(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN8(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.sourceEndian;
+    } else {
+        //CODA
+        fbWidth = VPU_ALIGN16(encOpenParam.picWidth);
+        fbHeight = VPU_ALIGN16(encOpenParam.picHeight);
+        fbAllocInfo.endian  = encOpenParam.frameEndian;
+    }
+
+
+    if (SRC_FB_TYPE_YUV == srcFbType) {
+        mapType = LINEAR_FRAME_MAP;
+    }
+    fbStride = CalcStride(fbWidth, fbHeight, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, mapType, FALSE);
+
+    fbAllocInfo.format  = (FrameBufferFormat)encOpenParam.srcFormat;
+    fbAllocInfo.cbcrInterleave = encOpenParam.cbcrInterleave;
+    fbAllocInfo.mapType = mapType;
+    fbAllocInfo.stride  = fbStride;
+    fbAllocInfo.height  = fbHeight;
+    fbAllocInfo.size    = size;
+    fbAllocInfo.type    = FB_TYPE_PPU;
+    fbAllocInfo.num     = ctx->fbCount.srcFbNum;
+    fbAllocInfo.nv21    = encOpenParam.nv21;
+
+    if (PRODUCT_ID_NOT_W_SERIES(ctx->productID)) {
+        fbAllocInfo.lumaBitDepth = 8;
+        fbAllocInfo.chromaBitDepth = 8;
+    }
+    ctx->srcFbAllocInfo = fbAllocInfo;
+
+    return TRUE;
+}
+
+void SetFeederTotalBufferNumber(ComponentImpl* com, Uint32 number)
+{
+    YuvFeederContext*     ctx            = (YuvFeederContext*)com->context;
+    ctx->totalBufferNumber = number;
+}
+
+BOOL AttachDMABuffer(ComponentImpl* com, void *pBuffer, Uint32 size)
+{
+    YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
+    EncOpenParam            encOpenParam = ctx->encOpenParam;
+
+    int i = 0;
+    GetAllocInfo(com, size);
+
+    for (i = 0;i < ENC_SRC_BUF_NUM; i ++){
+        if (ctx->pFbSrcMem[i].phys_addr == 0)
+        {
+            VLOG(INFO, "Found empty frame at index %d\r\n", i);
+            break;
+        }
+    }
+    if (i == MAX_REG_FRAME)
+    {
+        VLOG(ERR, "Could not found empty frame at index\r\n");
+        return FALSE;
+    }
+
+    if (FALSE == AttachFBMemory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i], &ctx->pFbSrc[i], pBuffer, size)) {
+        VLOG(ERR, "failed to attach source buffers\n");
+        return FALSE;
+    }
+    ctx->pFbSrcMem[i].virt_addr = (unsigned long)pBuffer;
+    ctx->currentBufferNumber ++;
+
+    return TRUE;
+}
+
 void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
 {
     YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
