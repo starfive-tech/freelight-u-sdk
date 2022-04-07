@@ -36,8 +36,8 @@ fail because certain dependencies don't have the best git hosting.
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
-	$ cd buildroot && git checkout --track origin/JH7100_VisionFive_devel && cd ..
-	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_VisionFive_devel && cd ..
+	$ cd buildroot && git checkout JH7100_VisionFive_devel && cd ..
+	$ cd HiFive_U-Boot && git checkout JH7100_VisionFive_devel && cd ..
 	$ cd linux && git checkout --track origin/visionfive-5.15.y-devel && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
@@ -230,21 +230,7 @@ The visionfive and starlight board natively always support PWMDAC to audio-out (
 
 ## Appendix III: Build TF Card Booting Image
 
-If you don't already use a local tftp server, then you probably want to make the TF card target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target TF card; please modify the following file. The `GPT` Partition Table for the TF card is recommended. 
-
-`HiFive_U-Boot/configs/starfive_jh7100_starlight_smode_defconfig`  (for `starlight` or `starlight-a1` board)
-or
-`HiFive_U-Boot/configs/starfive_jh7100_visionfive_smode_defconfig`  (for `visionfive` board):
-
-```
-change
-CONFIG_USE_BOOTCOMMAND is not set
-to
-CONFIG_USE_BOOTCOMMAND=y
-
-add
-CONFIG_BOOTCOMMAND="run mmcsetup; run fdtsetup; run fatenv; echo 'running boot2...'; run boot2"
-```
+If you don't already use a local tftp server, then you probably want to make the TF card target; the default size is 16 GBs. NOTE THIS WILL DESTROY ALL EXISTING DATA on the target TF card; The `GPT` Partition Table for the TF card is recommended. 
 
 Please insert the TF card and run command `df -h` to check the device name `/dev/sdXX`, then run command `umount /dev/sdXX`",  then run the following instructions to build TF card image:
 
@@ -256,5 +242,4 @@ $ rm -rf work/buildroot_rootfs/images/rootfs.ext*
 $ make HWBOARD=xxx buildroot_rootfs -jx
 $ make HWBOARD=xxx DISK=/dev/sdX format-nvdla-rootfs && sync
 ```
-Note: please also do not forget to update the `fw_payload.bin.out` which is built by this step.
 
