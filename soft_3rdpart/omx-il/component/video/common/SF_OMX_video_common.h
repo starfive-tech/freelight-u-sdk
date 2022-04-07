@@ -94,8 +94,9 @@ typedef struct _SF_COMPONENT_FUNCTIONS
     void* (*AllocateFrameBuffer2)(ComponentImpl* com, Uint32 size);
     BOOL (*AttachDMABuffer)(ComponentImpl* com, Uint64 virtAddress, Uint32 size);
     void (*SetRenderTotalBufferNumber)(ComponentImpl* com, Uint32 number);
-    void (*WaitForExecoderReady)(ComponentImpl *com);
-}SF_COMPONENT_FUNCTIONS;
+    void (*SetFeederTotalBufferNumber)(ComponentImpl* com, Uint32 number);
+    void (*WaitForExecoderReady)(ComponentImpl *com)
+} SF_COMPONENT_FUNCTIONS;
 
 typedef struct _SF_WAVE5_IMPLEMEMT
 {

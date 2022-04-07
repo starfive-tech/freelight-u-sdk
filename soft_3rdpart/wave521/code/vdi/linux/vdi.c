@@ -943,6 +943,35 @@ int vdi_read_memory(unsigned long core_idx, PhysicalAddress addr, unsigned char 
     return len;
 }
 
+int vdi_virt_to_phys(unsigned long core_idx, vpu_buffer_t *vb)
+{
+    vdi_info_t *vdi;
+    vpudrv_buffer_t vdb;
+
+#ifdef SUPPORT_MULTI_CORE_IN_ONE_DRIVER
+    core_idx = 0;
+#endif
+    if (core_idx >= MAX_NUM_VPU_CORE)
+        return -1;
+
+    vdi = &s_vdi_info[core_idx];
+
+    if(!vdi || vdi->vpu_fd==-1 || vdi->vpu_fd == 0x00)
+        return -1;
+
+    osal_memset(&vdb, 0x00, sizeof(vpudrv_buffer_t));
+    vdb.virt_addr = vb->virt_addr;
+    if (ioctl(vdi->vpu_fd, VDI_IOCTL_GET_PHYSICAL_MEMORY, &vdb) < 0)
+    {
+        VLOG(ERR, "[VDI] fail to GET_PHYSICAL_MEMORY\n");
+        return -1;
+    }
+    vb->phys_addr = (unsigned long)vdb.phys_addr;
+    vb->base = (unsigned long)vdb.base;
+    VLOG(INFO, "get phy = %#x vb->phy = %#x, base=%lx\n", vdb.phys_addr, vb->phys_addr, vb->base);
+    return 0;
+}
+
 int vdi_allocate_dma_memory(unsigned long core_idx, vpu_buffer_t *vb, int memTypes, int instIndex)
 {
     vdi_info_t *vdi;
