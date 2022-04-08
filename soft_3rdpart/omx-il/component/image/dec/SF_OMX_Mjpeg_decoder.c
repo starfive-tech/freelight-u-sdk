@@ -438,22 +438,73 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                     case OMX_COLOR_FormatYUV420Planar:
                         decConfig->cbcrInterleave = CBCR_SEPARATED;
                         decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_420;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
                     case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
                         decConfig->cbcrInterleave = CBCR_INTERLEAVE;
                         decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_420;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
                     case OMX_COLOR_FormatYVU420SemiPlanar: //NV21
                         decConfig->cbcrInterleave = CRCB_INTERLEAVE;
                         decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_420;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
                     case OMX_COLOR_FormatYUV422Planar:
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
                         pOutputPort->nBufferSize = width * height * 2;
                         break;
-                    case OMX_COLOR_FormatYUV444Interleaved:
+                    case OMX_COLOR_FormatYUV422SemiPlanar: //NV16
+                        decConfig->cbcrInterleave = CBCR_INTERLEAVE;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatYVU422SemiPlanar: //NV61
+                        decConfig->cbcrInterleave = CRCB_INTERLEAVE;
+                        decConfig->packedFormat = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatYCbYCr: //YUYV
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_422_YUYV;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatYCrYCb: //YVYU
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_422_YVYU;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatCbYCrY: //UYVY
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_422_UYVY;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatCrYCbY: //VYUY
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_422_VYUY;
+                        pSfMjpegImplement->frameFormat = FORMAT_422;
+                        pOutputPort->nBufferSize = width * height * 2;
+                        break;
+                    case OMX_COLOR_FormatYUV444Planar: //I444
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_NONE;
+                        pSfMjpegImplement->frameFormat = FORMAT_444;
+                        pOutputPort->nBufferSize = width * height * 3;
+                        break;
+                    case OMX_COLOR_FormatYUV444Interleaved: //YUV444PACKED
+                        decConfig->cbcrInterleave = CBCR_SEPARATED;
+                        decConfig->packedFormat   = PACKED_FORMAT_444;
+                        pSfMjpegImplement->frameFormat = FORMAT_444;
                         pOutputPort->nBufferSize = width * height * 3;
                         break;
                     default:
@@ -481,25 +532,60 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             decConfig->cbcrInterleave = CBCR_SEPARATED;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
-            pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
         case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
             decConfig->cbcrInterleave = CBCR_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
-            pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
         case OMX_COLOR_FormatYVU420SemiPlanar: //NV21
             decConfig->cbcrInterleave = CRCB_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
-            pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
         case OMX_COLOR_FormatYUV422Planar:
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_422;
-            pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
-        case OMX_COLOR_FormatYUV444Interleaved:
+        case OMX_COLOR_FormatYUV422SemiPlanar: //NV16
+            decConfig->cbcrInterleave = CBCR_INTERLEAVE;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatYVU422SemiPlanar: //NV61
+            decConfig->cbcrInterleave = CRCB_INTERLEAVE;
+            decConfig->packedFormat = PACKED_FORMAT_NONE;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatYCbYCr: //YUYV
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_422_YUYV;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatYCrYCb: //YVYU
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_422_YVYU;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatCbYCrY: //UYVY
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_422_UYVY;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatCrYCbY: //VYUY
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_422_VYUY;
+            pSfMjpegImplement->frameFormat = FORMAT_422;
+            break;
+        case OMX_COLOR_FormatYUV444Planar: //I444
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_NONE;
+            pSfMjpegImplement->frameFormat = FORMAT_444;
+            break;
+        case OMX_COLOR_FormatYUV444Interleaved: //YUV444PACKED
+            decConfig->cbcrInterleave = CBCR_SEPARATED;
+            decConfig->packedFormat   = PACKED_FORMAT_444;
             pSfMjpegImplement->frameFormat = FORMAT_444;
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
@@ -507,6 +593,9 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             ret = OMX_ErrorNotImplemented;
             break;
         }
+        if(!ret)
+            pPort->format.video.eColorFormat = portFormat->eColorFormat;
+        break;
     }
     case OMX_IndexParamVideoInit:
     {
