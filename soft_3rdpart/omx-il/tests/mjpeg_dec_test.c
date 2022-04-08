@@ -400,6 +400,42 @@ int main(int argc, char **argv)
     {
         pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420Planar;
     }
+    else if (strstr(decodeTestContext->sOutputFormat, "i422") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV422Planar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "nv16") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV422SemiPlanar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "nv61") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYVU422SemiPlanar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "yuyv") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYCbYCr;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "yvyu") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYCrYCb;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "uyvy") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatCbYCrY;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "vyuy") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatCrYCbY;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "i444") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV444Planar;
+    }
+    else if (strstr(decodeTestContext->sOutputFormat, "yuv444packed") != NULL)
+    {
+        pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV444Interleaved;
+    }
     else
     {
         printf("Unsupported color format!\r\n");
