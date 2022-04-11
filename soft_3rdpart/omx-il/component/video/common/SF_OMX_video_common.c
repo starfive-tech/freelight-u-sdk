@@ -367,7 +367,7 @@ OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort)
     FunctionIn();
     if (nPort == 0)
     {
-        ComponentImpl *pFeederComponent = pSfVideoImplement->hSFComponentFeeder;
+        ComponentImpl *pFeederComponent = (ComponentImpl *)(pSfVideoImplement->hSFComponentFeeder);
         OMX_U32 inputQueueCount = pSfVideoImplement->functions->Queue_Get_Cnt(pFeederComponent->srcPort.inputQ);
         LOG(SF_LOG_PERF, "Flush %d buffers on inputPort\r\n", inputQueueCount);
         if (inputQueueCount > 0)
@@ -388,7 +388,7 @@ OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort)
     }
     else if (nPort == 1)
     {
-        ComponentImpl *pRendererComponent = pSfVideoImplement->hSFComponentRender;
+        ComponentImpl *pRendererComponent = (ComponentImpl *)(pSfVideoImplement->hSFComponentRender);
         OMX_U32 OutputQueueCount = pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ);
         LOG(SF_LOG_PERF, "Flush %d buffers on outputPort\r\n", OutputQueueCount);
         if (OutputQueueCount > 0)
@@ -410,6 +410,7 @@ OMX_ERRORTYPE FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPort)
         }
     }
     FunctionOut();
+    return OMX_ErrorNone;
 }
 
 static void sf_get_component_functions(SF_COMPONENT_FUNCTIONS *funcs, OMX_PTR *sohandle)
@@ -505,7 +506,7 @@ SF_OMX_COMPONENT *GetSFOMXComponrntByComponent(Component *pComponent)
             break;
         }
     }
-EXIT:
+
     if (pSfOMXComponent == NULL)
     {
         LOG(SF_LOG_ERR, "Could not get SfOMXComponent buy %p\r\n", pComponent);

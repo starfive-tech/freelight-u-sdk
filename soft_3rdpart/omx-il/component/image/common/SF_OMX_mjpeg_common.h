@@ -133,6 +133,7 @@ extern "C"
 
     OMX_ERRORTYPE GetStateMjpegCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState);
     OMX_ERRORTYPE InitMjpegStructorCommon(SF_OMX_COMPONENT *hComponent);
+    OMX_U8* AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeBytes);
     void GetMpegfunctions(SF_CODAJ12_FUNCTIONS *funcs, OMX_PTR *sohandle);
 
 #ifdef __cplusplus

@@ -231,7 +231,7 @@ EXIT:
 }
 
 #define MAX_INDEX 1
-static int frame_array[MAX_INDEX] = {-1};
+static OMX_U64 frame_array[MAX_INDEX] = {-1};
 static int frame_array_index = 0;
 
 static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
@@ -265,7 +265,7 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     {
         int clear = frame_array[frame_array_index];
         pSfVideoImplement->functions->Render_DecClrDispFlag(pRendererComponent->context, clear);
-        frame_array[frame_array_index] = (int)pBuffer->pOutputPortPrivate;
+        frame_array[frame_array_index] = (OMX_U64)(pBuffer->pOutputPortPrivate);
         LOG(SF_LOG_INFO, "store display flag: %d, clear display flag: %d\r\n", frame_array[frame_array_index], clear);
         frame_array_index ++;
     }
@@ -287,7 +287,7 @@ EXIT:
     return ret;
 }
 
-static int nOutBufIndex = 0;
+static OMX_U64 nOutBufIndex = 0;
 
 static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_IN OMX_HANDLETYPE hComponent,
@@ -331,7 +331,7 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
         nOutBufIndex ++;
     }
     ret = StoreOMXBuffer(pSfOMXComponent, temp_bufferHeader);
-    LOG(SF_LOG_INFO, "pBuffer address = %p, nOutBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (int)temp_bufferHeader->pOutputPortPrivate);
+    LOG(SF_LOG_INFO, "pBuffer address = %p, nOutBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (OMX_U64)(temp_bufferHeader->pOutputPortPrivate));
     LOG(SF_LOG_PERF, "alloc size = %d, buffer count = %d\r\n",nSizeBytes, GetOMXBufferCount(pSfOMXComponent));
 EXIT:
     FunctionOut();
@@ -780,34 +780,6 @@ EXIT:
     return ret;
 }
 
-static OMX_ERRORTYPE SF_OMX_GetExtensionIndex(
-    OMX_IN OMX_HANDLETYPE hComponent,
-    OMX_IN OMX_STRING cParameterName,
-    OMX_OUT OMX_INDEXTYPE *pIndexType)
-{
-    OMX_ERRORTYPE ret = OMX_ErrorNone;
-
-    FunctionIn();
-
-    FunctionOut();
-    return ret;
-}
-
-static OMX_ERRORTYPE SF_OMX_GetComponentVersion(
-    OMX_IN OMX_HANDLETYPE hComponent,
-    OMX_OUT OMX_STRING pComponentName,
-    OMX_OUT OMX_VERSIONTYPE *pComponentVersion,
-    OMX_OUT OMX_VERSIONTYPE *pSpecVersion,
-    OMX_OUT OMX_UUIDTYPE *pComponentUUID)
-{
-    OMX_ERRORTYPE ret = OMX_ErrorNone;
-
-    FunctionIn();
-
-    FunctionOut();
-    return ret;
-}
-
 static OMX_ERRORTYPE InitDecoder(SF_OMX_COMPONENT *pSfOMXComponent)
 {
     TestDecConfig *testConfig = NULL;
@@ -988,14 +960,14 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
             case COMPONENT_STATE_EXECUTED:
             case COMPONENT_STATE_TERMINATED:
                 {
-                    PortContainerExternal *pPortContainerExternal = NULL;
-                    OMX_BUFFERHEADERTYPE *pOMXBuffer;
                     pSFComponentDecoder->pause = OMX_TRUE;
                     pSFComponentFeeder->pause = OMX_TRUE;
                     pSFComponentRender->pause = OMX_TRUE;
                     FlushBuffer(pSfOMXComponent, 0);
                     FlushBuffer(pSfOMXComponent, 1);
                 }
+                break;
+            case COMPONENT_STATE_MAX:
                 break;
             }
             pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData,
@@ -1045,6 +1017,8 @@ static OMX_ERRORTYPE SF_OMX_SendCommand(
                 pSFComponentDecoder->pause = OMX_FALSE;
                 pSFComponentFeeder->pause = OMX_FALSE;
                 pSFComponentRender->pause = OMX_FALSE;
+                break;
+            case COMPONENT_STATE_MAX:
                 break;
             }
            
@@ -1124,21 +1098,6 @@ static OMX_ERRORTYPE SF_OMX_FreeBuffer(
 
     FunctionOut();
     return ret;
-}
-
-static OMX_ERRORTYPE SF_OMX_UseEGLImage(
-    OMX_IN OMX_HANDLETYPE hComponent,
-    OMX_INOUT OMX_BUFFERHEADERTYPE **ppBufferHdr,
-    OMX_IN OMX_U32 nPortIndex,
-    OMX_IN OMX_PTR pAppPrivate,
-    OMX_IN void *eglImage)
-{
-    (void)hComponent;
-    (void)ppBufferHdr;
-    (void)nPortIndex;
-    (void)pAppPrivate;
-    (void)eglImage;
-    return OMX_ErrorNotImplemented;
 }
 
 static OMX_ERRORTYPE SF_OMX_ComponentConstructor(SF_OMX_COMPONENT *pSfOMXComponent)

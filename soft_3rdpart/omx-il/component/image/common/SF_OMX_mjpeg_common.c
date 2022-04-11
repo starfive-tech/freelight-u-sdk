@@ -9,13 +9,8 @@ static void sf_get_component_functions(SF_CODAJ12_FUNCTIONS *funcs, OMX_PTR *soh
 OMX_ERRORTYPE GetStateMjpegCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
-    OMX_COMPONENTTYPE *pOMXComponent = NULL;
-    SF_OMX_COMPONENT *pSfOMXComponent = NULL;
-    OMX_STATETYPE nextState;
 
     FunctionIn();
-
-EXIT:
     FunctionOut();
     return ret;
 }
@@ -111,19 +106,19 @@ OMX_ERRORTYPE InitMjpegStructorCommon(SF_OMX_COMPONENT *pSfOMXComponent)
     if (pSfCodaj12Implement->sInputMessageQueue < 0)
     {
         LOG(SF_LOG_ERR, "get ipc_id error");
-        return;
+        return OMX_ErrorInsufficientResources;
     }
     pSfCodaj12Implement->sOutputMessageQueue = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
     if (pSfCodaj12Implement->sOutputMessageQueue < 0)
     {
         LOG(SF_LOG_ERR, "get ipc_id error");
-        return;
+        return OMX_ErrorInsufficientResources;
     }
     pSfCodaj12Implement->sBufferDoneQueue = msgget(IPC_PRIVATE, 0666 | IPC_CREAT);
     if (pSfCodaj12Implement->sBufferDoneQueue < 0)
     {
         LOG(SF_LOG_ERR, "get ipc_id error");
-        return;
+        return OMX_ErrorInsufficientResources;
     }
 
     for (int i = 0; i < 2; i++)
@@ -254,7 +249,7 @@ OMX_BOOL AttachOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8* pBuffer, 
     JpgDecOpenParam *decOP = &pSfCodaj12Implement->decOP;
     DecConfigParam *decConfig = pSfCodaj12Implement->config;
     JpgDecInitialInfo *initialInfo = &pSfCodaj12Implement->initialInfo;
-    FrameBuffer *pFrameBuf = &pSfCodaj12Implement->frameBuf;
+    FrameBuffer *pFrameBuf = pSfCodaj12Implement->frameBuf;
     JpgDecHandle handle = pSfCodaj12Implement->handle;
 
     Uint32 framebufWidth = 0, framebufHeight = 0, framebufStride = 0;
@@ -263,7 +258,7 @@ OMX_BOOL AttachOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8* pBuffer, 
     Uint32 bitDepth = 0;
     FrameFormat subsample;
     Uint32 temp;
-    OMX_U8 *virtAddr;
+    OMX_U8 *virtAddr = NULL;
     Uint32 bufferIndex;
     JpgRet jpgret;
 
@@ -353,7 +348,7 @@ OMX_BOOL AttachOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8* pBuffer, 
         return OMX_FALSE;
     }
 
-     LOG(SF_LOG_INFO, "Allocate frame buffer %p, index = %d\r\n", virtAddr, bufferIndex);
+    LOG(SF_LOG_INFO, "Allocate frame buffer %p, index = %d\r\n", virtAddr, bufferIndex);
 
     //Register frame buffer
     FRAME_BUF *pFrame = pSfCodaj12Implement->functions->GetFrameBuffer(instIdx, bufferIndex);
@@ -382,7 +377,7 @@ OMX_U8 *AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeByt
     JpgDecOpenParam *decOP = &pSfCodaj12Implement->decOP;
     DecConfigParam *decConfig = pSfCodaj12Implement->config;
     JpgDecInitialInfo *initialInfo = &pSfCodaj12Implement->initialInfo;
-    FrameBuffer *pFrameBuf = &pSfCodaj12Implement->frameBuf;
+    FrameBuffer *pFrameBuf = pSfCodaj12Implement->frameBuf;
     JpgDecHandle handle = pSfCodaj12Implement->handle;
 
     Uint32 framebufWidth = 0, framebufHeight = 0, framebufStride = 0;
