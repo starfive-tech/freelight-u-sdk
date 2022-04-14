@@ -108,7 +108,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 
     Message data;
     data.msg_type = 1;
-    if (pBuffer->nFlags & OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS)
+    if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
     {
         data.msg_flag = -1;
     }
@@ -183,7 +183,7 @@ static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERH
     return avpacket.size;
 }
 
-int main(int argc, char *argv)
+int main(int argc, char **argv)
 {
     printf("=============================\r\n");
     OMX_S32 error;
@@ -195,7 +195,7 @@ int main(int argc, char *argv)
     if (msgid < 0)
     {
         perror("get ipc_id error");
-        return;
+        return -1;
     }
     decodeTestContext->msgid = msgid;
     struct option longOpt[] = {
@@ -204,7 +204,7 @@ int main(int argc, char *argv)
         {"format", required_argument, NULL, 'f'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:f:";
+    char *shortOpt = "i:o:f:";
     OMX_U32 c;
     OMX_S32 l;
 
@@ -214,7 +214,7 @@ int main(int argc, char *argv)
     //     return;
     // }
 
-    while ((c = getopt_long(argc, argv, shortOpt, longOpt, &l)) != -1)
+    while ((c = getopt_long(argc, argv, shortOpt, longOpt, (int *)&l)) != -1)
     {
         switch (c)
         {
@@ -227,7 +227,7 @@ int main(int argc, char *argv)
             else
             {
                 printf("input file not exist!\r\n");
-                return;
+                return -1;
             }
             break;
         case 'o':
@@ -241,14 +241,14 @@ int main(int argc, char *argv)
         case 'h':
         default:
             help();
-            return;
+            return -1;
         }
     }
 
     if (decodeTestContext->sInputFilePath == NULL || decodeTestContext->sOutputFilePath == NULL)
     {
         help();
-        return;
+        return -1;
     }
     /*ffmpeg init*/
     printf("init ffmpeg\r\n");
@@ -259,7 +259,7 @@ int main(int argc, char *argv)
     if ((avContext = avformat_alloc_context()) == NULL)
     {
         printf("avformat_alloc_context fail\r\n");
-        return;
+        return -1;
     }
     avContext->flags |= AV_CODEC_FLAG_TRUNCATED;
 
@@ -268,7 +268,7 @@ int main(int argc, char *argv)
     {
         printf("%s:%d failed to av_open_input_file error(%d), %s\n",
                __FILE__, __LINE__, error, decodeTestContext->sInputFilePath);
-        return;
+        return -1;
     }
 
     printf("avformat_find_stream_info\r\n");
@@ -276,7 +276,7 @@ int main(int argc, char *argv)
     {
         printf("%s:%d failed to avformat_find_stream_info. error(%d)\n",
                __FUNCTION__, __LINE__, error);
-        return;
+        return -1;
     }
 
     printf("av_find_best_stream\r\n");
@@ -284,7 +284,7 @@ int main(int argc, char *argv)
     if (imageIndex < 0)
     {
         printf("%s:%d failed to av_find_best_stream.\n", __FUNCTION__, __LINE__);
-        return;
+        return -1;
     }
     printf("image index = %d\r\n", imageIndex);
     decodeTestContext->avContext = avContext;
@@ -402,7 +402,7 @@ int main(int argc, char *argv)
             printf("write error = %d\r\n", error);
             fclose(fb);
             printf("write %d buffers finish\r\n", size);
-            if (pBuffer->nFlags & OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS)
+            if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
             {
                 goto end;
             }

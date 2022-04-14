@@ -15,6 +15,8 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
 
 #define OMX_INIT_STRUCTURE(a)         \
     memset(&(a), 0, sizeof(a));       \
@@ -110,7 +112,7 @@ static OMX_ERRORTYPE fill_output_buffer_done_handler(
 
     Message data;
     data.msg_type = 1;
-    if (pBuffer->nFlags & OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS)
+    if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
     {
         data.msg_flag = -1;
     }
@@ -182,10 +184,9 @@ static OMX_S32 FillInputBuffer(EncodeTestContext *encodeTestContext, OMX_BUFFERH
     return count;
 }
 
-int main(int argc, char *argv)
+int main(int argc, char **argv)
 {
     printf("=============================\r\n");
-    OMX_S32 error;
     encodeTestContext = malloc(sizeof(EncodeTestContext));
     memset(encodeTestContext, 0, sizeof(EncodeTestContext));
 
@@ -194,7 +195,7 @@ int main(int argc, char *argv)
     if (msgid < 0)
     {
         perror("get ipc_id error");
-        return;
+        return -1;
     }
     encodeTestContext->msgid = msgid;
     struct option longOpt[] = {
@@ -207,18 +208,18 @@ int main(int argc, char *argv)
         {"height", required_argument, NULL, 'h'},
         {NULL, no_argument, NULL, 0},
     };
-    OMX_S8 *shortOpt = "i:o:f:s:w:h:b:c:";
+    char *shortOpt = "i:o:f:s:w:h:b:c:";
     OMX_U32 c;
     OMX_S32 l;
 
     if (argc == 0)
     {
         help();
-        return;
+        return 0;
     }
     OMX_U32 width = 0;
     OMX_U32 height = 0;
-    while ((c = getopt_long(argc, argv, shortOpt, longOpt, &l)) != -1)
+    while ((c = getopt_long(argc, argv, shortOpt, longOpt, (int *)&l)) != -1)
     {
         switch (c)
         {
@@ -232,7 +233,7 @@ int main(int argc, char *argv)
             else
             {
                 printf("input file not exist!\r\n");
-                return;
+                return -1;
             }
             break;
         case 'o':
@@ -261,7 +262,7 @@ int main(int argc, char *argv)
             break;
         default:
             help();
-            return;
+            return 0;
         }
     }
 
@@ -272,7 +273,7 @@ int main(int argc, char *argv)
         encodeTestContext->pInputFile == NULL)
     {
         help();
-        return;
+        return -1;
     }
 
     /*omx init*/
@@ -385,7 +386,7 @@ int main(int argc, char *argv)
             FILE *fb = fopen(sFilePath, "ab+");
             fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
             fclose(fb);
-            if (pBuffer->nFlags & OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS)
+            if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
             {
                 goto end;
             }
