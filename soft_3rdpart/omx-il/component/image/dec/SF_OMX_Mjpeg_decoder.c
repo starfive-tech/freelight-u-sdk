@@ -128,6 +128,7 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
     OMX_ERRORTYPE ret = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
     SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
+    SF_CODAJ12_IMPLEMEMT *pSfCodaj12Implement = pSfOMXComponent->componentImpl;
     FunctionIn();
 
     if (hComponent == NULL)
@@ -157,6 +158,8 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
         nOutBufIndex ++;
     }
     LOG(SF_LOG_DEBUG, "pBuffer address = %p, nOutBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (OMX_U64)temp_bufferHeader->pOutputPortPrivate);
+
+    pSfCodaj12Implement->allocBufFlag = OMX_FALSE;
 EXIT:
     FunctionOut();
 
@@ -197,6 +200,7 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
         temp_bufferHeader->pBuffer = AllocateOutputBuffer(pSfOMXComponent, nSizeBytes);
         temp_bufferHeader->pOutputPortPrivate = (OMX_PTR)nOutBufIndex;
         nOutBufIndex ++;
+        pSfCodaj12Implement->allocBufFlag = OMX_TRUE;
         // temp_bufferHeader->nFilledLen = nSizeBytes;
     }
     else if (nPortIndex == 0)
@@ -1259,7 +1263,11 @@ static OMX_ERRORTYPE SF_OMX_ComponentClear(SF_OMX_COMPONENT *pSfOMXComponent)
     }
     pSfCodaj12Implement->functions->BitstreamFeeder_Destroy(pSfCodaj12Implement->feeder);
 
-    pSfCodaj12Implement->functions->FreeFrameBuffer(pSfCodaj12Implement->instIdx);
+
+    if(pSfCodaj12Implement->allocBufFlag == OMX_TRUE)
+    {
+        pSfCodaj12Implement->functions->FreeFrameBuffer(pSfCodaj12Implement->instIdx);
+    }
     pSfCodaj12Implement->functions->jdi_free_dma_memory(vbStream);
     pSfCodaj12Implement->functions->JPU_DeInit();
     // TODO
