@@ -1,15 +1,15 @@
 [submodule "buildroot"]
 	path = buildroot
 	url = http://192.168.110.45/jh7100/buildroot.git
-	branch = JH7100_VisionFive_devel
+	branch = JH7100_VisionFive_OH_dev
 [submodule "HiFive_U-Boot"]
 	path = HiFive_U-Boot
 	url = http://192.168.110.45/jh7100/u-boot.git
-	branch = JH7100_VisionFive_devel
+	branch = JH7100_VisionFive_OH_dev
 [submodule "linux"]
 	path = linux
 	url = http://192.168.110.45/jh7100/linux.git
-	branch = visionfive-5.15.y-devel
+	branch = vic_starlight
 [submodule "opensbi"]
 	path = opensbi
 	url = http://192.168.110.45/jh7100/opensbi.git
