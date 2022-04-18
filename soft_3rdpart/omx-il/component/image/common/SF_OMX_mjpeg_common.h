@@ -110,6 +110,7 @@ typedef struct _SF_CODAJ12_IMPLEMEMT
     OMX_BOOL bThreadRunning;
     OMX_STATETYPE currentState;
     FrameFormat frameFormat;
+    OMX_BOOL allocBufFlag;
 } SF_CODAJ12_IMPLEMEMT;
 
 typedef struct Message
