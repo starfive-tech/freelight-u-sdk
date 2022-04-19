@@ -408,7 +408,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
             break;
         case 2:
             portFormat->eCompressionFormat = OMX_VIDEO_CodingUnused;
-            portFormat->eColorFormat = OMX_COLOR_FormatYVU420PackedSemiPlanar;
+            portFormat->eColorFormat = OMX_COLOR_FormatYVU420PackedPlanar;
             portFormat->xFramerate = 30;
             break;
         default:
@@ -580,6 +580,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                 pTestEncConfig->nv21 = FALSE;
                 break;
             case OMX_COLOR_FormatYVU420PackedSemiPlanar: //NV21
+            case OMX_COLOR_FormatYVU420PackedPlanar:
                 pTestEncConfig->cbcrInterleave = TRUE;
                 pTestEncConfig->nv21 = TRUE;
                 break;
@@ -612,6 +613,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             case OMX_COLOR_FormatYUV420SemiPlanar:
             case OMX_COLOR_FormatYUV420PackedSemiPlanar:
             case OMX_COLOR_FormatYVU420PackedSemiPlanar:
+            case OMX_COLOR_FormatYVU420PackedPlanar:
                 if (width && height)
                     pOutputPort->nBufferSize = (width * height * 3) / 2;
                 break;

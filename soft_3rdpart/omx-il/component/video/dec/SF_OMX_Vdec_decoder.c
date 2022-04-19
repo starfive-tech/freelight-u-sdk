@@ -167,6 +167,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         case OMX_COLOR_FormatYUV420SemiPlanar:
         case OMX_COLOR_FormatYUV420PackedSemiPlanar:
         case OMX_COLOR_FormatYVU420PackedSemiPlanar:
+        case OMX_COLOR_FormatYVU420PackedPlanar:
             if (nWidth && nHeight) {
                 pSfOMXComponent->portDefinition[1].nBufferSize = (nWidth * nHeight * 3) / 2;
             }
@@ -463,7 +464,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
             break;
         case 2:
             portFormat->eCompressionFormat = OMX_VIDEO_CodingUnused;
-            portFormat->eColorFormat = OMX_COLOR_FormatYVU420PackedSemiPlanar;
+            portFormat->eColorFormat = OMX_COLOR_FormatYVU420PackedPlanar;
             portFormat->xFramerate = 30;
             break;
         default:
@@ -565,6 +566,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                 pPort->format.video.eColorFormat = portFormat->eColorFormat;
                 break;
             case OMX_COLOR_FormatYVU420PackedSemiPlanar: //NV21
+            case OMX_COLOR_FormatYVU420PackedPlanar:
                 pTestDecConfig->cbcrInterleave = TRUE;
                 pTestDecConfig->nv21 = TRUE;
                 pPort->format.video.eColorFormat = portFormat->eColorFormat;
@@ -680,6 +682,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                     pOutputPort->nBufferSize = (width * height * 3) / 2;
                 break;
             case OMX_COLOR_FormatYVU420PackedSemiPlanar: //NV21
+            case OMX_COLOR_FormatYVU420PackedPlanar:
                 pTestDecConfig->cbcrInterleave = TRUE;
                 pTestDecConfig->nv21 = TRUE;
                 if (width && height)
