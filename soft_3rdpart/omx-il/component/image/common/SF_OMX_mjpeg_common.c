@@ -216,7 +216,7 @@ static void sf_get_component_functions(SF_CODAJ12_FUNCTIONS *funcs, OMX_PTR *soh
     funcs->JPU_DecRegisterFrameBuffer2 = dlsym(sohandle, "JPU_DecRegisterFrameBuffer2");
     funcs->JPU_DecRegisterFrameBuffer = dlsym(sohandle, "JPU_DecRegisterFrameBuffer");
     funcs->JPU_DecGiveCommand = dlsym(sohandle, "JPU_DecGiveCommand");
-    funcs->JPU_DecStartOneFrame = dlsym(sohandle, "JPU_DecStartOneFrame");
+    funcs->JPU_DecStartOneFrameBySerialNum = dlsym(sohandle, "JPU_DecStartOneFrameBySerialNum");
     funcs->JPU_DecGetOutputInfo = dlsym(sohandle, "JPU_DecGetOutputInfo");
     funcs->JPU_SWReset = dlsym(sohandle, "JPU_SWReset");
     funcs->JPU_DecSetRdPtrEx = dlsym(sohandle, "JPU_DecSetRdPtrEx");

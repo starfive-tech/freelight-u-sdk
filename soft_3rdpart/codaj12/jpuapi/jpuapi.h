@@ -1053,6 +1053,11 @@ This means the stream ends.
     JpgRet JPU_DecStartOneFrame(
         JpgDecHandle handle,
         JpgDecParam *param );
+
+    JpgRet JPU_DecStartOneFrameBySerialNum(
+        JpgDecHandle handle,
+        JpgDecParam *param,
+        int bufferIndex );
 /**
 * @brief
 Application can get the information of output of decoding. The information

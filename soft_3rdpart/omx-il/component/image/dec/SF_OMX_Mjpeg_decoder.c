@@ -100,7 +100,6 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     // {
     //     return OMX_ErrorInsufficientResources;
     // }
-    StoreOMXBuffer(pSfOMXComponent, pBuffer);
     Message data;
     data.msg_type = 1;
     data.msg_flag = 0;
@@ -196,6 +195,8 @@ static OMX_ERRORTYPE SF_OMX_AllocateBuffer(
     if (nPortIndex == 1)
     {
         temp_bufferHeader->pBuffer = AllocateOutputBuffer(pSfOMXComponent, nSizeBytes);
+        temp_bufferHeader->pOutputPortPrivate = (OMX_PTR)nOutBufIndex;
+        nOutBufIndex ++;
         // temp_bufferHeader->nFilledLen = nSizeBytes;
     }
     else if (nPortIndex == 0)
@@ -721,7 +722,7 @@ static OMX_U32 FeedData(SF_OMX_COMPONENT *pSfOMXComponent)
     return nFilledLen;
 }
 
-static OMX_ERRORTYPE WaitForOutputBufferReady(SF_OMX_COMPONENT *pSfOMXComponent)
+static OMX_ERRORTYPE WaitForOutputBufferReady(SF_OMX_COMPONENT *pSfOMXComponent,OMX_BUFFERHEADERTYPE **ppOMXBuffer)
 {
     FunctionIn();
     OMX_ERRORTYPE ret = OMX_ErrorNone;
@@ -742,6 +743,7 @@ static OMX_ERRORTYPE WaitForOutputBufferReady(SF_OMX_COMPONENT *pSfOMXComponent)
         pSfCodaj12Implement->bThreadRunning = OMX_FALSE;
         ret = OMX_ErrorNoMore;
     }
+    *ppOMXBuffer = pOMXBuffer;
     FunctionOut();
     return ret;
 }
@@ -942,12 +944,15 @@ static void ProcessThread(void *args)
 
     while (pSfCodaj12Implement->bThreadRunning)
     {
-        if (WaitForOutputBufferReady(pSfOMXComponent) != OMX_ErrorNone)
+        OMX_BUFFERHEADERTYPE *pBuffer;
+
+        if (WaitForOutputBufferReady(pSfOMXComponent,&pBuffer) != OMX_ErrorNone)
         {
             continue;
         }
 
-        ret = pSfCodaj12Implement->functions->JPU_DecStartOneFrame(handle, &decParam);
+        LOG(SF_LOG_INFO, "pBuffer->pOutputPortPrivate:%d\r\n", (int)(pBuffer->pOutputPortPrivate));
+        ret = pSfCodaj12Implement->functions->JPU_DecStartOneFrameBySerialNum(handle, &decParam,(int)(pBuffer->pOutputPortPrivate));
         if (ret != JPG_RET_SUCCESS && ret != JPG_RET_EOS)
         {
             if (ret == JPG_RET_BIT_EMPTY)
@@ -962,7 +967,7 @@ static void ProcessThread(void *args)
                 continue;
             }
 
-            LOG(SF_LOG_ERR, "JPU_DecStartOneFrame failed Error code is 0x%x \n", ret);
+            LOG(SF_LOG_ERR, "JPU_DecStartOneFrameBySerialNum failed Error code is 0x%x \n", ret);
             return;
         }
         if (ret == JPG_RET_EOS)
@@ -1004,30 +1009,6 @@ static void ProcessThread(void *args)
             return;
         }
 
-        if (outputInfo.decodingSuccess == 0)
-            LOG(SF_LOG_ERR, "JPU_DecGetOutputInfo decode fail framdIdx %d \n", frameIdx);
-
-        LOG(SF_LOG_INFO, "%02d %04d  %8d     %8x %8x %10d  %8x  %8x %10d\n",
-            instIdx, frameIdx, outputInfo.indexFrameDisplay, outputInfo.bytePosFrameStart, outputInfo.ecsPtr, outputInfo.consumedByte,
-            outputInfo.rdPtr, outputInfo.wrPtr, outputInfo.frameCycle);
-
-        if (outputInfo.indexFrameDisplay == -1)
-            break;
-
-        FRAME_BUF *pFrame = pSfCodaj12Implement->functions->GetFrameBuffer(instIdx, outputInfo.indexFrameDisplay);
-        OMX_U8 *virtAddr = (OMX_U8 *)pFrame->vbY.virt_addr;
-        //TODO: Get OMX buffer by virt addr
-        OMX_BUFFERHEADERTYPE *pBuffer = GetOMXBufferByAddr(pSfOMXComponent, virtAddr);
-        if (pBuffer == NULL)
-        {
-            LOG(SF_LOG_ERR, "Could not find omx buffer by address\r\n");
-            LOG(SF_LOG_DEBUG, "OMX_EventBufferFlag IN\r\n");
-            pSfOMXComponent->callbacks->EventHandler(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, OMX_EventBufferFlag,
-                                    1, 1, NULL);
-            LOG(SF_LOG_DEBUG, "OMX_EventBufferFlag OUT\r\n");
-            goto end;
-        }
-        ClearOMXBuffer(pSfOMXComponent, pBuffer);
         switch (pSfCodaj12Implement->frameFormat)
         {
         case FORMAT_420:
