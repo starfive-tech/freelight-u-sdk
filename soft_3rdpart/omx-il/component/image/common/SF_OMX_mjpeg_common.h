@@ -48,7 +48,7 @@ typedef struct _SF_CODAJ12_FUNCTIONS
     JpgRet (*JPU_DecRegisterFrameBuffer2)(JpgDecHandle handle, FrameBuffer *bufArray, int stride);
     JpgRet (*JPU_DecRegisterFrameBuffer)(JpgDecHandle handle, FrameBuffer * bufArray, int num, int stride);
     JpgRet (*JPU_DecGiveCommand)(JpgDecHandle handle, JpgCommand cmd, void *param);
-    JpgRet (*JPU_DecStartOneFrame)(JpgDecHandle handle, JpgDecParam *param);
+    JpgRet (*JPU_DecStartOneFrameBySerialNum)(JpgDecHandle handle, JpgDecParam *param,int bufferIndex);
     JpgRet (*JPU_DecGetOutputInfo)(JpgDecHandle handle, JpgDecOutputInfo *info);
     JpgRet (*JPU_SWReset)(JpgHandle handle);
     JpgRet (*JPU_DecSetRdPtrEx)(JpgDecHandle handle, PhysicalAddress addr, BOOL updateWrPtr);
