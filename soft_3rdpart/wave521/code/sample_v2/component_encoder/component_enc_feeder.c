@@ -133,10 +133,10 @@ void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
     Uint32                  fbWidth = 0;
     Uint32                  fbHeight = 0;
     Uint32                  fbStride = 0;
-    // Uint32                  fbSize = 0;
+    Uint32                  fbSize = 0;
     SRC_FB_TYPE             srcFbType = SRC_FB_TYPE_YUV;
-    // DRAMConfig              dramConfig;
-    // DRAMConfig*             pDramConfig = NULL;
+    DRAMConfig              dramConfig;
+    DRAMConfig*             pDramConfig = NULL;
     TiledMapType            mapType;
     FrameBufferAllocInfo    fbAllocInfo;
     int i = 0;
@@ -146,7 +146,7 @@ void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
         return NULL;
     }
     osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
-    // osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
+    osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
 
     //Buffers for source frames
     if (PRODUCT_ID_W_SERIES(ctx->productID)) {
@@ -158,23 +158,27 @@ void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
         fbWidth = VPU_ALIGN16(encOpenParam.picWidth);
         fbHeight = VPU_ALIGN16(encOpenParam.picHeight);
         fbAllocInfo.endian  = encOpenParam.frameEndian;
-        // VPU_EncGiveCommand(ctx->handle, GET_DRAM_CONFIG, &dramConfig);
-        // pDramConfig = &dramConfig;
+        VPU_EncGiveCommand(ctx->handle, GET_DRAM_CONFIG, &dramConfig);
+        pDramConfig = &dramConfig;
     }
 
-
+    if (fbWidth % 32 > 0)
+    {
+        ctx->MemoryOptimization = FALSE;
+        return NULL;
+    }
     if (SRC_FB_TYPE_YUV == srcFbType) {
         mapType = LINEAR_FRAME_MAP;
     }
     fbStride = CalcStride(fbWidth, fbHeight, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, mapType, FALSE);
-    // fbSize = VPU_GetFrameBufSize(ctx->handle, encOpenParam.coreIdx, fbStride, fbHeight, mapType, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, pDramConfig);
-
+    fbSize = VPU_GetFrameBufSize(ctx->handle, encOpenParam.coreIdx, fbStride, fbHeight, mapType, (FrameBufferFormat)encOpenParam.srcFormat, encOpenParam.cbcrInterleave, pDramConfig);
+    VLOG(INFO, "fbSize = %d\r\n", fbSize);
     fbAllocInfo.format  = (FrameBufferFormat)encOpenParam.srcFormat;
     fbAllocInfo.cbcrInterleave = encOpenParam.cbcrInterleave;
     fbAllocInfo.mapType = mapType;
     fbAllocInfo.stride  = fbStride;
     fbAllocInfo.height  = fbHeight;
-    fbAllocInfo.size    = size;
+    fbAllocInfo.size    = fbSize == 0? size : fbSize;
     fbAllocInfo.type    = FB_TYPE_PPU;
     fbAllocInfo.num     = ctx->fbCount.srcFbNum;
     fbAllocInfo.nv21    = encOpenParam.nv21;
@@ -197,7 +201,7 @@ void* AllocateFrameBuffer2(ComponentImpl* com, Uint32 size)
         return NULL;
     }
 
-    if (FALSE == AllocFBMemory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i], &ctx->pFbSrc[i], size, 1, ENC_SRC, ctx->handle->instIndex)) {
+    if (FALSE == AllocFBMemory(encOpenParam.coreIdx, &ctx->pFbSrcMem[i], &ctx->pFbSrc[i], fbAllocInfo.size, 1, ENC_SRC, ctx->handle->instIndex)) {
         VLOG(ERR, "failed to allocate source buffers\n");
         return NULL;
     }
@@ -222,9 +226,6 @@ static BOOL AllocateFrameBuffer(ComponentImpl* com) {
     osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
     osal_memset(&dramConfig, 0x00, sizeof(DRAMConfig));
 
-    if (ctx->MemoryOptimization) {
-        goto alloc_fbc;
-    }
 
     //Buffers for source frames
     if (PRODUCT_ID_W_SERIES(ctx->productID)) {
@@ -240,7 +241,17 @@ static BOOL AllocateFrameBuffer(ComponentImpl* com) {
         pDramConfig = &dramConfig;
     }
 
+    VLOG(INFO, "fbWidth = %d fbHeight = %d MemoryOptimization = %d\r\n", fbWidth, fbHeight, ctx->MemoryOptimization);
+    if (fbWidth % 32 > 0)
+    {
+        ctx->MemoryOptimization = FALSE;
+    }
+    else if (ctx->MemoryOptimization)
+    {
+        goto alloc_fbc;
+    }
 
+    VLOG(INFO, "Alloc FrameBuffers\r\n");
     if (SRC_FB_TYPE_YUV == srcFbType) {
         mapType = LINEAR_FRAME_MAP;
     }
@@ -267,7 +278,7 @@ static BOOL AllocateFrameBuffer(ComponentImpl* com) {
         return FALSE;
     }
     ctx->srcFbAllocInfo = fbAllocInfo;
-
+    ctx->currentBufferNumber = ctx->fbCount.srcFbNum;
 alloc_fbc:
     //Buffers for reconstructed frames
     osal_memset(&fbAllocInfo, 0x00, sizeof(FrameBufferAllocInfo));
@@ -476,6 +487,7 @@ static BOOL ExecuteYuvFeeder(ComponentImpl* com, PortContainer* in, PortContaine
             ret = FALSE;
         }
     } else {
+        VLOG(INFO, "Normal Feed\r\n");
         ret = YuvFeeder_Feed(ctx->yuvFeeder, encOpenParam->coreIdx, &sinkData->fb, encOpenParam->picWidth, encOpenParam->picHeight, sinkData->srcFbIndex, extraFeedingInfo);
     }
 
