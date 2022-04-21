@@ -171,9 +171,17 @@ static OMX_S32 FillInputBuffer(EncodeTestContext *encodeTestContext, OMX_BUFFERH
     count = fread(pInputBuffer->pBuffer, 1, size, fp);
     if (count < size)
     {
+        Message data;
+        data.msg_type = 1;
+        data.msg_flag = -1;
         pInputBuffer->nFlags = 0x1;
         pInputBuffer->nFilledLen = 0;
         count = 0;
+
+        if (msgsnd(encodeTestContext->msgid, (void *)&data, sizeof(data) - sizeof(data.msg_type), 0) == -1)
+        {
+            fprintf(stderr, "msgsnd failed\n");
+        }
     }
     else
     {

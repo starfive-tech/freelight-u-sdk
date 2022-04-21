@@ -487,7 +487,6 @@ BOOL LoadYuvImageByYCbCrLine(
             }
         }
     }
-
     return TRUE;//lint !e438
 }
 
