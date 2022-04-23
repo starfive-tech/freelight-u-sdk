@@ -60,7 +60,7 @@ Note that if not specify the  `HWBOARD` , the default `make`  is for `visionfive
 Also you can specify the system environment variables `HWBOARD` to choose the board, 
 eg. `export HWBOARD=visionfive`,  then run `make` as the below. 
 
-By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver).  The following instructions will add VPU driver module according to your requirement:
+By default, the above generated image does not contain VPU driver module(wave511, the video hard decode driver and wave521, the video hard encode driver)and JPU driver module(codaj12,the jpeg/mjpeg hard decode&encode driver).  The following instructions will add VPU driver module and JPU driver module according to your requirement:
 
 	$ make -jx
 	$ make vpudriver-build
