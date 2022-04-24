@@ -280,7 +280,7 @@ static OMX_ERRORTYPE SF_OMX_UseBuffer(
         temp_bufferHeader->pInputPortPrivate = (OMX_PTR)nInputBufIndex;
         nInputBufIndex ++;
     }
-    LOG(SF_LOG_INFO, "pBuffer address = %p, nInputBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (int)temp_bufferHeader->pInputPortPrivate);
+    LOG(SF_LOG_INFO, "pBuffer address = %p, nInputBufIndex = %d\r\n", temp_bufferHeader->pBuffer, (OMX_U64)temp_bufferHeader->pInputPortPrivate);
 EXIT:
     FunctionOut();
 
