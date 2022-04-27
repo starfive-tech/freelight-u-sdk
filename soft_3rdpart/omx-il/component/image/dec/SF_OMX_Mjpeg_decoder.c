@@ -316,7 +316,7 @@ static OMX_ERRORTYPE SF_OMX_GetParameter(
             portFormat->eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar; //NV12
             break;
         case 4:
-            portFormat->eColorFormat = OMX_COLOR_FormatYVU420PackedPlanar; //NV21
+            portFormat->eColorFormat = OMX_COLOR_FormatYVU420SemiPlanar; //NV21
             break;
         default:
             if (index > 0)
@@ -436,13 +436,11 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
                     case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
-                    case OMX_COLOR_FormatYUV420PackedSemiPlanar:
                         decConfig->cbcrInterleave = CBCR_INTERLEAVE;
                         decConfig->packedFormat = PACKED_FORMAT_NONE;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
                         break;
-                    case OMX_COLOR_FormatYVU420PackedSemiPlanar: //NV21
-                    case OMX_COLOR_FormatYVU420PackedPlanar:
+                    case OMX_COLOR_FormatYVU420SemiPlanar: //NV21
                         decConfig->cbcrInterleave = CRCB_INTERLEAVE;
                         decConfig->packedFormat = PACKED_FORMAT_NONE;
                         pOutputPort->nBufferSize = (width * height * 3) / 2;
@@ -481,14 +479,12 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
         case OMX_COLOR_FormatYUV420SemiPlanar: //NV12
-        case OMX_COLOR_FormatYUV420PackedSemiPlanar:
             decConfig->cbcrInterleave = CBCR_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;
             pPort->format.video.eColorFormat = portFormat->eColorFormat;
             break;
-        case OMX_COLOR_FormatYVU420PackedSemiPlanar: //NV21
-        case OMX_COLOR_FormatYVU420PackedPlanar:
+        case OMX_COLOR_FormatYVU420SemiPlanar: //NV21
             decConfig->cbcrInterleave = CRCB_INTERLEAVE;
             decConfig->packedFormat = PACKED_FORMAT_NONE;
             pSfMjpegImplement->frameFormat = FORMAT_420;

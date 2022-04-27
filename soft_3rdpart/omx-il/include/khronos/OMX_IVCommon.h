@@ -132,8 +132,79 @@ typedef enum OMX_COLOR_FORMATTYPE {
     OMX_COLOR_Format24BitABGR6666,
     OMX_COLOR_FormatKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
     OMX_COLOR_FormatVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
-    OMX_COLOR_FormatYVU420PackedPlanar,
-    OMX_COLOR_FormatYVU420PackedSemiPlanar,
+
+    /* Starfive extensions */
+    /* I420 */
+    OMX_COLOR_FormatYUV420Planar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV420Planar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV420Planar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV420Planar_P12_16BIT_LSB,
+    /* NV12 */
+    OMX_COLOR_FormatYUV420SemiPlanar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV420SemiPlanar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV420SemiPlanar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV420SemiPlanar_P12_16BIT_LSB,
+    /* NV21 */
+    OMX_COLOR_FormatYVU420SemiPlanar,
+    OMX_COLOR_FormatYVU420SemiPlanar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYVU420SemiPlanar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYVU420SemiPlanar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYVU420SemiPlanar_P12_16BIT_LSB,
+    /* I422 */
+    OMX_COLOR_FormatYUV422Planar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV422Planar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV422Planar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV422Planar_P12_16BIT_LSB,
+    /* NV16 */
+    OMX_COLOR_FormatYUV422SemiPlanar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV422SemiPlanar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV422SemiPlanar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV422SemiPlanar_P12_16BIT_LSB,
+    /* NV61 */
+    OMX_COLOR_FormatYVU422SemiPlanar,
+    OMX_COLOR_FormatYVU422SemiPlanar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYVU422SemiPlanar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYVU422SemiPlanar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYVU422SemiPlanar_P12_16BIT_LSB,
+    /* YUYV */
+    OMX_COLOR_FormatYCbYCr_P10_16BIT_MSB,
+    OMX_COLOR_FormatYCbYCr_P10_16BIT_LSB,
+    OMX_COLOR_FormatYCbYCr_P12_16BIT_MSB,
+    OMX_COLOR_FormatYCbYCr_P12_16BIT_LSB,
+    /* YVYU */
+    OMX_COLOR_FormatYCrYCb_P10_16BIT_MSB,
+    OMX_COLOR_FormatYCrYCb_P10_16BIT_LSB,
+    OMX_COLOR_FormatYCrYCb_P12_16BIT_MSB,
+    OMX_COLOR_FormatYCrYCb_P12_16BIT_LSB,
+    /* UYVY */
+    OMX_COLOR_FormatCbYCrY_P10_16BIT_MSB,
+    OMX_COLOR_FormatCbYCrY_P10_16BIT_LSB,
+    OMX_COLOR_FormatCbYCrY_P12_16BIT_MSB,
+    OMX_COLOR_FormatCbYCrY_P12_16BIT_LSB,
+    /* VYUY */
+    OMX_COLOR_FormatCrYCbY_P10_16BIT_MSB,
+    OMX_COLOR_FormatCrYCbY_P10_16BIT_LSB,
+    OMX_COLOR_FormatCrYCbY_P12_16BIT_MSB,
+    OMX_COLOR_FormatCrYCbY_P12_16BIT_LSB,
+    /* I444 */
+    OMX_COLOR_FormatYUV444Planar,
+    OMX_COLOR_FormatYUV444Planar_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV444Planar_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV444Planar_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV444Planar_P12_16BIT_LSB,
+    /* YUV444PACKED */
+    OMX_COLOR_FormatYUV444Interleaved_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV444Interleaved_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV444Interleaved_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV444Interleaved_P12_16BIT_LSB,
+    /* YUV400 */
+    OMX_COLOR_FormatYUV400,
+    OMX_COLOR_FormatYUV400_P10_16BIT_MSB,
+    OMX_COLOR_FormatYUV400_P10_16BIT_LSB,
+    OMX_COLOR_FormatYUV400_P12_16BIT_MSB,
+    OMX_COLOR_FormatYUV400_P12_16BIT_LSB,
+    /* Starfive extensions end */
+
     OMX_COLOR_FormatMax = 0x7FFFFFFF
 } OMX_COLOR_FORMATTYPE;
 

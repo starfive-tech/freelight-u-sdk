@@ -324,7 +324,7 @@ int main(int argc, char **argv)
     }
     else if (strstr(encodeTestContext->sInputFormat, "nv21") != NULL)
     {
-        pInputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYVU420PackedPlanar;
+        pInputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYVU420SemiPlanar;
     }
     else
     {
