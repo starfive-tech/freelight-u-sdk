@@ -10,6 +10,8 @@
 
 #define WAVE521_CONFIG_FILE "/lib/firmware/encoder_defconfig.cfg"
 extern OMX_TICKS gInitTimeStamp;
+OMX_U32 tmpFramerate;
+OMX_S64 tmpCounter=0;
 
 static char* Event2Str(unsigned long event)
 {
@@ -100,7 +102,10 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         }
 
         pOMXBuffer->nFilledLen = pPortContainerExternal->nFilledLen;
-        pOMXBuffer->nTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec - gInitTimeStamp;
+        // pOMXBuffer->nTimeStamp = tv.tv_sec * 1000000 + tv.tv_usec - gInitTimeStamp;
+        pOMXBuffer->nTimeStamp = (tmpCounter*1000000)/tmpFramerate;
+        tmpCounter++;
+        LOG(SF_LOG_INFO,"test nTimeStamp:%ld\r\n",pOMXBuffer->nTimeStamp);
         pOMXBuffer->nFlags = pPortContainerExternal->nFlags;
 #if 0
             {
@@ -540,6 +545,7 @@ static OMX_ERRORTYPE SF_OMX_SetParameter(
         OMX_U32 height = pPortDefinition->format.video.nFrameHeight;
         OMX_U32 nBitrate = pPortDefinition->format.video.nBitrate;
         OMX_U32 xFramerate = pPortDefinition->format.video.xFramerate;
+        tmpFramerate = xFramerate;
         OMX_U32 nBufferCountActual = pPortDefinition->nBufferCountActual;
         LOG(SF_LOG_INFO, "Set width = %d, height = %d, xFramerate = %d, nBitrate = %d, nBufferCountActual = %d on port %d\r\n",
             width, height, xFramerate, nBitrate, nBufferCountActual, portIndex);
