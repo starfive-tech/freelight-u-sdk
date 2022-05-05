@@ -90,12 +90,6 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     {
         struct timeval tv;
 
-        /*Before each execution of getomxbufferbyaddr, check whether there are still members in the queue*/
-        PortContainerExternal *output = (PortContainerExternal*)pSfVideoImplement->functions->ComponentPortPeekData(&((ComponentImpl *)com)->sinkPort);
-        if (output == NULL) {
-            return;
-        }
-
         pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
         if (pOMXBuffer == NULL)
         {

@@ -517,8 +517,10 @@ static BOOL ExecuteRenderer(ComponentImpl* com, PortContainer* in, PortContainer
         }
         output->nFilledLen = sizeYuv;
         output->nFlags = srcData->decInfo.indexFrameDisplay;
-        ComponentPortGetData(&com->sinkPort);
-        ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
+        if(ComponentPortGetData(&com->sinkPort))
+        {
+            ComponentNotifyListeners(com, COMPONENT_EVENT_DEC_FILL_BUFFER_DONE, (void *)output);
+        }
         (void)DisplayFrame;
         (void)decConfig;
         (void)mapType;
