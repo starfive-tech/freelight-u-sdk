@@ -78,6 +78,10 @@ EXIT:
 }
 
 #define MAX_INDEX 1
+#define MCA_MAX_INDEX 1
+Message mesCacheArr[MCA_MAX_INDEX];
+int MCAIndex = 0;
+int dataCount = 0;
 
 static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     OMX_IN OMX_HANDLETYPE hComponent,
@@ -100,12 +104,30 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     // {
     //     return OMX_ErrorInsufficientResources;
     // }
-    Message data;
+    Message data,outputData;
     data.msg_type = 1;
     data.msg_flag = 0;
     data.pBuffer = pBuffer;
+
+    // TODO start:
+    // Temporary store one buff here to prevent the buff from being refill too soon.
+    // It is a workaround for issue and should be fixed further.
+    MCAIndex = (dataCount++)%MCA_MAX_INDEX;
+    if(dataCount < MCA_MAX_INDEX)
+    {
+        mesCacheArr[MCAIndex] = data;
+        FunctionOut();
+        return ret;
+    }
+    else
+    {
+        outputData = mesCacheArr[MCAIndex];
+        mesCacheArr[MCAIndex] = data;
+    }
+    // TODO end
+
     LOG(SF_LOG_DEBUG, "Send to message queue\r\n");
-    if (msgsnd(pSfCodaj12Implement->sOutputMessageQueue, (void *)&data, sizeof(data) - sizeof(data.msg_type), 0) == -1)
+    if (msgsnd(pSfCodaj12Implement->sOutputMessageQueue, (void *)&outputData, sizeof(data) - sizeof(data.msg_type), 0) == -1)
     {
         LOG(SF_LOG_ERR, "msgsnd failed\n");
     }
