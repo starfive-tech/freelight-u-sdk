@@ -955,8 +955,8 @@ static void ProcessThread(void *args)
             continue;
         }
 
-        LOG(SF_LOG_INFO, "pBuffer->pOutputPortPrivate:%d\r\n", (int)(pBuffer->pOutputPortPrivate));
-        ret = pSfCodaj12Implement->functions->JPU_DecStartOneFrameBySerialNum(handle, &decParam,(int)(pBuffer->pOutputPortPrivate));
+        LOG(SF_LOG_INFO, "pBuffer->pOutputPortPrivate:%d\r\n", (OMX_U64)(pBuffer->pOutputPortPrivate));
+        ret = pSfCodaj12Implement->functions->JPU_DecStartOneFrameBySerialNum(handle, &decParam,(OMX_U64)(pBuffer->pOutputPortPrivate));
         if (ret != JPG_RET_SUCCESS && ret != JPG_RET_EOS)
         {
             if (ret == JPG_RET_BIT_EMPTY)
@@ -1071,7 +1071,6 @@ static void ProcessThread(void *args)
     CodaJ12FlushBuffer(pSfOMXComponent, OMX_INPUT_PORT_INDEX);
     CodaJ12FlushBuffer(pSfOMXComponent, OMX_OUTPUT_PORT_INDEX);
     pSfCodaj12Implement->currentState = OMX_StateIdle;
-end:
     FunctionOut();
     ThreadExit(NULL);
 }
