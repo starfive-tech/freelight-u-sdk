@@ -25,9 +25,9 @@ Install required additional packages.
 
 ## Fetch code Instructions ##
 
-Checkout this repository  (branch `JH7100_VisionFive_devel`). Then you will need to checkout all of the linked submodules using:
+Checkout this repository  (branch `JH7100_VisionFive_OH_dev`). Then you will need to checkout all of the linked submodules using:
 
-	$ git checkout --track origin/JH7100_VisionFive_devel
+	$ git checkout --track origin/JH7100_VisionFive_OH_dev
 	$ git submodule update --init --recursive
 
 This will take some time and require around 5GB of disk space. Some modules may
@@ -36,9 +36,9 @@ fail because certain dependencies don't have the best git hosting.
 Once the submodules are initialized, 4 submodules `buildroot`, `HiFive_U-boot`,
 `linux` and `opensbi` need checkout to corresponding branches manually, seeing `.gitmodule`
 
-	$ cd buildroot && git checkout JH7100_VisionFive_devel && cd ..
-	$ cd HiFive_U-Boot && git checkout JH7100_VisionFive_devel && cd ..
-	$ cd linux && git checkout --track origin/visionfive-5.15.y-devel && cd ..
+	$ cd buildroot && git checkout --track origin/JH7100_VisionFive_OH_dev && cd ..
+	$ cd HiFive_U-Boot && git checkout --track origin/JH7100_VisionFive_OH_dev && cd ..
+	$ cd linux && git checkout --track origin/vic_starlight && cd ..
 	$ cd opensbi && git checkout master && cd ..
 
 ## Build Instructions ##
