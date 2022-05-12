@@ -1420,7 +1420,23 @@ void ReleaseVideoMemory(
     Uint32        count
     );
 
-void *AllocateDecFrameBuffer2(DecHandle decHandle, TestDecConfig* config, Uint32 size, FrameBuffer* retFbArray, vpu_buffer_t* retFbAddrs);
+void *AllocateDecFrameBuffer2(
+    DecHandle decHandle,
+    TestDecConfig* config,
+    Uint32 size,
+    FrameBuffer* retFbArray,
+    vpu_buffer_t* retFbAddrs
+    );
+
+BOOL AttachDecDMABuffer(
+    DecHandle decHandle,
+    TestDecConfig* config,
+    Uint64 virtAddress,
+    Uint32 size,
+    FrameBuffer* retFbArray,
+    vpu_buffer_t* retFbAddrs
+    );
+
 BOOL AllocateDecFrameBuffer(
     DecHandle       decHandle,
     TestDecConfig*  config,

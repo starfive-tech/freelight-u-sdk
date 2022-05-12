@@ -127,7 +127,10 @@ static vpu_drv_context_t s_vpu_drv_context;
 static int s_vpu_major;
 static struct cdev s_vpu_cdev;
 
-static struct clk *s_vpu_clk;
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
+static struct clk *s_vpu_clk = NULL;
+#endif
+
 static int s_vpu_open_ref_count;
 #ifdef VPU_SUPPORT_ISR
 static int s_vpu_irq = VPU_IRQ_NUM;
@@ -649,7 +652,12 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
     switch (cmd) {
     case VDI_IOCTL_GET_PHYSICAL_MEMORY:
         {
-            vpudrv_buffer_pool_t *vbp;
+            vpudrv_buffer_pool_t *vbp = NULL;
+            void *user_address = NULL;
+            struct task_struct *my_struct = NULL;
+            struct mm_struct *mm = NULL;
+            unsigned long address = 0;
+            pgd_t *pgd = NULL;
             if ((ret = down_interruptible(&s_vpu_sem)) == 0) {
                 vbp = kzalloc(sizeof(*vbp), GFP_KERNEL);
                 if (!vbp) {
@@ -663,11 +671,11 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                     return -EFAULT;
                 }
 
-                void *user_address = (void *)vbp->vb.virt_addr;
-                struct task_struct *my_struct = get_current();
-                struct mm_struct *mm = my_struct->mm;
-                unsigned long address = (unsigned long)user_address;
-                pgd_t *pgd = pgd_offset(mm, address);
+                user_address = (void *)vbp->vb.virt_addr;
+                my_struct = get_current();
+                mm = my_struct->mm;
+                address = (unsigned long)user_address;
+                pgd = pgd_offset(mm, address);
 
                 if (!pgd_none(*pgd) && !pgd_bad(*pgd)) {
                     p4d_t *p4d = p4d_offset(pgd, address);

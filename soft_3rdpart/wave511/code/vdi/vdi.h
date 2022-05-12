@@ -116,6 +116,7 @@ extern "C" {
     int vdi_get_sram_memory(unsigned long core_idx, vpu_buffer_t *vb);
     int vdi_dettach_dma_memory(unsigned long core_idx, vpu_buffer_t *vb);
     void* vdi_map_virt2(unsigned long core_idx, int size, PhysicalAddress bufY);
+    int vdi_virt_to_phys(unsigned long core_idx, vpu_buffer_t *vb);
 
 #ifdef SUPPORT_MULTI_INST_INTR
     int vdi_wait_interrupt(unsigned long coreIdx, unsigned int instIdx, int timeout);
