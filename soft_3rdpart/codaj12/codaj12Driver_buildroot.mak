@@ -13,7 +13,7 @@ export SUBARCH=riscv
 export CROSS_COMPILE=riscv64-buildroot-linux-gnu-
 
 DRV_PATH  := $(shell pwd)/jdi/linux/driver
-EXTRA_CFLAGS +=	$(DEBFLAGS) -I$(LDDINCDIR) -Wno-unused-function
+EXTRA_CFLAGS +=	$(DEBFLAGS) -I$(LDDINCDIR) -Wall
 
 ifneq ($(KERNELRELEASE),)
 # call from kernel build system
