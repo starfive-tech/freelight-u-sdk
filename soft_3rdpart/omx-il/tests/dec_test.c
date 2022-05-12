@@ -3,6 +3,7 @@
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 #include <stdio.h>
+#include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
 #include <fcntl.h>
@@ -169,7 +170,8 @@ static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERH
         }
         else
         {
-            printf("%s:%d failed to av_read_frame error(0x%08x)\n", __FUNCTION__, __LINE__, error);
+            printf("%s:%d failed to av_read_frame, error: %s\n",
+                    __FUNCTION__, __LINE__, av_err2str(error));
             return 0;
         }
     }
@@ -262,16 +264,16 @@ int main(int argc, char **argv)
     printf("avformat_open_input\r\n");
     if ((error = avformat_open_input(&avContext, decodeTestContext->sInputFilePath, fmt, NULL)))
     {
-        printf("%s:%d failed to av_open_input_file error(%d), %s\n",
-               __FILE__, __LINE__, error, decodeTestContext->sInputFilePath);
+        printf("%s:%d failed to av_open_input_file error(%s), %s\n",
+               __FILE__, __LINE__, av_err2str(error), decodeTestContext->sInputFilePath);
         return -1;
     }
 
     printf("avformat_find_stream_info\r\n");
     if ((error = avformat_find_stream_info(avContext, NULL)) < 0)
     {
-        printf("%s:%d failed to avformat_find_stream_info. error(%d)\n",
-               __FUNCTION__, __LINE__, error);
+        printf("%s:%d failed to avformat_find_stream_info. error(%s)\n",
+               __FUNCTION__, __LINE__, av_err2str(error));
         return -1;
     }
 
@@ -282,7 +284,7 @@ int main(int argc, char **argv)
         printf("%s:%d failed to av_find_best_stream.\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    printf("video index = %d\r\n", videoIndex);
+    printf("video index = %ld\r\n", videoIndex);
     decodeTestContext->avContext = avContext;
     /*get video info*/
     codecParameters = avContext->streams[videoIndex]->codecpar;

@@ -4,6 +4,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include "SF_OMX_mjpeg_common.h"
 #include "SF_OMX_Core.h"

@@ -3,6 +3,7 @@
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 #include <stdio.h>
+#include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
 #include <fcntl.h>

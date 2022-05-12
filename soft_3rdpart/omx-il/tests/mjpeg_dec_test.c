@@ -3,6 +3,7 @@
  * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 #include <stdio.h>
+#include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
 #include <fcntl.h>
@@ -75,7 +76,7 @@ static OMX_ERRORTYPE event_handler(
         OMX_GetParameter(pDecodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
         OMX_U32 nOutputBufferSize = pOutputPortDefinition.nBufferSize;
         OMX_U32 nOutputBufferCount = pOutputPortDefinition.nBufferCountMin;
-        printf("allocate %d output buffers size %d\r\n", nOutputBufferCount, nOutputBufferSize);
+        printf("allocate %lu output buffers size %lu\r\n", nOutputBufferCount, nOutputBufferSize);
         for (int i = 0; i < nOutputBufferCount; i++)
         {
             OMX_BUFFERHEADERTYPE *pBuffer = NULL;
@@ -179,14 +180,15 @@ static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERH
         }
         else
         {
-            printf("%s:%d failed to av_read_frame error(0x%08x)\n", __FUNCTION__, __LINE__, error);
+            printf("%s:%d failed to av_read_frame, error: %s\n",
+                    __FUNCTION__, __LINE__, av_err2str(error));
             return 0;
         }
     }
     pInputBuffer->nFlags = 0x10;
     pInputBuffer->nFilledLen = avpacket.size;
     memcpy(pInputBuffer->pBuffer, avpacket.data, avpacket.size);
-    printf("%s, address = %p, size = %d, flag = %x\r\n", 
+    printf("%s, address = %p, size = %lu, flag = %lx\r\n",
         __FUNCTION__, pInputBuffer->pBuffer, pInputBuffer->nFilledLen, pInputBuffer->nFlags);
     return avpacket.size;
 }
@@ -326,16 +328,16 @@ int main(int argc, char **argv)
     printf("avformat_open_input\r\n");
     if ((error = avformat_open_input(&avContext, decodeTestContext->sInputFilePath, fmt, NULL)))
     {
-        printf("%s:%d failed to av_open_input_file error(%d), %s\n",
-               __FILE__, __LINE__, error, decodeTestContext->sInputFilePath);
+        printf("%s:%d failed to av_open_input_file error(%s), %s\n",
+               __FILE__, __LINE__, av_err2str(error), decodeTestContext->sInputFilePath);
         return -1;
     }
 
     printf("avformat_find_stream_info\r\n");
     if ((error = avformat_find_stream_info(avContext, NULL)) < 0)
     {
-        printf("%s:%d failed to avformat_find_stream_info. error(%d)\n",
-               __FUNCTION__, __LINE__, error);
+        printf("%s:%d failed to avformat_find_stream_info. error(%s)\n",
+               __FUNCTION__, __LINE__, av_err2str(error));
         return -1;
     }
 
@@ -346,7 +348,7 @@ int main(int argc, char **argv)
         printf("%s:%d failed to av_find_best_stream.\n", __FUNCTION__, __LINE__);
         return -1;
     }
-    printf("image index = %d\r\n", imageIndex);
+    printf("image index = %lu\r\n", imageIndex);
     decodeTestContext->avContext = avContext;
     /*get image info*/
     codecParameters = avContext->streams[imageIndex]->codecpar;
@@ -540,13 +542,13 @@ int main(int argc, char **argv)
         {
             OMX_BUFFERHEADERTYPE *pBuffer = data.pBuffer;
             OMX_STRING sFilePath = decodeTestContext->sOutputFilePath;
-            printf("write %d buffers to file\r\n", pBuffer->nFilledLen);
+            printf("write %lu buffers to file\r\n", pBuffer->nFilledLen);
             FILE *fb = fopen(sFilePath, "ab+");
             size_t size = fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
             int error = ferror(fb);
             printf("write error = %d\r\n", error);
             fclose(fb);
-            printf("write %d buffers finish\r\n", size);
+            printf("write %lu buffers finish\r\n", size);
             if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
             {
                 goto end;
