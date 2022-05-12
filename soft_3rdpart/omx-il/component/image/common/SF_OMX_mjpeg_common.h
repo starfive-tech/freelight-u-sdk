@@ -132,10 +132,13 @@ extern "C"
 {
 #endif
 
-    OMX_ERRORTYPE GetStateMjpegCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState);
-    OMX_ERRORTYPE InitMjpegStructorCommon(SF_OMX_COMPONENT *hComponent);
-    OMX_U8* AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeBytes);
-    void GetMpegfunctions(SF_CODAJ12_FUNCTIONS *funcs, OMX_PTR *sohandle);
+OMX_ERRORTYPE GetStateMjpegCommon(OMX_IN OMX_HANDLETYPE hComponent, OMX_OUT OMX_STATETYPE *pState);
+OMX_ERRORTYPE InitMjpegStructorCommon(SF_OMX_COMPONENT *hComponent);
+OMX_BOOL AttachOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8* pBuffer, OMX_U32 nSizeBytes);
+OMX_U8* AllocateOutputBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nSizeBytes);
+OMX_ERRORTYPE CreateThread(OMX_HANDLETYPE *threadHandle, OMX_PTR function_name, OMX_PTR argument);
+void ThreadExit(void *value_ptr);
+void CodaJ12FlushBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U32 nPortNumber);
 
 #ifdef __cplusplus
 }

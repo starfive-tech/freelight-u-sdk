@@ -27,6 +27,7 @@ enum
     SF_LOG_ALL,
 };
 void SF_LogMsg(int level, const char *function, int line, const char *format, ...);
+void SF_LogMsgAppend(int level, const char *format, ...);
 #define LOG(level, ...) SF_LogMsg(level, __FUNCTION__, __LINE__, __VA_ARGS__);
 #define LOG_APPEND(level, ...) SF_LogMsgAppend(level, __VA_ARGS__);
 #define FunctionIn() SF_LogMsg(SF_LOG_DEBUG, __FUNCTION__, __LINE__, "FUN IN\r\n");
@@ -98,11 +99,13 @@ typedef struct _SF_PORT_PRIVATE
 extern "C"
 {
 #endif
-    
-    OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8 *pAddr);
-    OMX_ERRORTYPE StoreOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
-    OMX_ERRORTYPE ClearOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
-    OMX_U32 GetOMXBufferCount(SF_OMX_COMPONENT *pSfOMXComponent);
+
+int GetNumberOfComponent();
+OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8 *pAddr);
+OMX_ERRORTYPE StoreOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
+OMX_ERRORTYPE ClearOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
+OMX_U32 GetOMXBufferCount(SF_OMX_COMPONENT *pSfOMXComponent);
+
 #ifdef __cplusplus
 }
 #endif

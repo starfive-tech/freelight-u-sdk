@@ -38,10 +38,10 @@ INCLUDES += -I$(STAGING_DIR)/usr/include/
 #mjpeg
 INCLUDES += -I./component/image/common
 
-CFLAGS  += -g -I. -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning $(INCLUDES) $(DEFINES) $(PLATFORM_FLAGS)
+CFLAGS  += -g -I. $(INCLUDES) $(DEFINES) $(PLATFORM_FLAGS)
 CFLAGS  += -fpic
 ARFLAGS += cru
-LDFLAGS = -ldl -lpthread
+LDFLAGS = -ldl -lpthread -Wl,--fatal-warning
 LDFLAGS_FFMPEG = -lavformat -lavcodec -lavutil -lswresample
 
 OBJDIR=obj
@@ -82,7 +82,7 @@ OBJECTPATHS_MJPEG_DEC_TEST=$(addprefix $(OBJDIR)/,$(notdir $(OBJECTNAMES_MJPEG_D
 all: omx-il
 
 omx-il: CREATE_DIR $(OBJECTPATHS_COMMON)
-	$(CC) -g -fPIC -shared -o libsf-omx-il.so $(LDFLAGS) $(OBJECTPATHS_COMMON)
+	$(CC) -g -fPIC -shared -o libsf-omx-il.so $(OBJECTPATHS_COMMON)
 
 test: video-dec-test video-enc-test mjpeg-dec-test
 
@@ -101,6 +101,4 @@ CREATE_DIR:
 	-mkdir -p $(OBJDIR)
 
 obj/%.o: %.c $(MAKEFILE)
-	$(CC) $(CFLAGS) -Wall -c $< -o $@ -MD -MF $(@:.o=.dep)
-
-
+	$(CC) $(CFLAGS) -Wall -Werror -c $< -o $@ -MD -MF $(@:.o=.dep)

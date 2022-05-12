@@ -351,7 +351,7 @@ void SF_LogMsg(int level, const char *function, int line, const char *format, ..
         break;
     }
     gettimeofday(&tv, NULL);
-    printf("[%06d:%06d]%10s%32s%10d\t", tv.tv_sec, tv.tv_usec, prefix, function, line);
+    printf("[%06ld:%06ld]%10s%32s%10d\t", tv.tv_sec, tv.tv_usec, prefix, function, line);
     va_start(ptr, format);
     vprintf(format, ptr);
     va_end(ptr);
