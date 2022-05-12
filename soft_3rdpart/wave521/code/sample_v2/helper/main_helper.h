@@ -1415,6 +1415,13 @@ BOOL AllocateDecFrameBuffer(
     Uint32*         retStride
     );
 
+BOOL AttachFBMemory(
+    Uint32 coreIdx,
+    vpu_buffer_t *pFbMem,
+    FrameBuffer* pFb,
+    void *pBuffer,
+    Uint32 size);
+
 BOOL AllocFBMemory(
     Uint32 coreIdx,
     vpu_buffer_t *pFbMem,
