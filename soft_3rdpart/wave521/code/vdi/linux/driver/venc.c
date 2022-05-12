@@ -117,9 +117,11 @@ static video_mm_t s_vmem;
 static vpudrv_buffer_t s_video_memory = {0};
 #endif /*VPU_SUPPORT_RESERVED_VIDEO_MEMORY*/
 
+#ifndef VPU_SUPPORT_CLOCK_CONTROL
 static int vpu_hw_reset(void);
 static void vpu_clk_disable(void);
 static int vpu_clk_enable(void);
+#endif
 
 /* end customer definition */
 static vpudrv_buffer_t s_instance_pool = {0};
@@ -649,7 +651,12 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
 	switch (cmd) {
 	case VDI_IOCTL_GET_PHYSICAL_MEMORY:
         {
-            vpudrv_buffer_pool_t *vbp;
+            vpudrv_buffer_pool_t *vbp = NULL;
+            void *user_address = NULL;
+            struct task_struct *my_struct = NULL;
+            struct mm_struct *mm = NULL;
+            unsigned long address = 0;
+            pgd_t *pgd = NULL;
             if ((ret = down_interruptible(&s_vpu_sem)) == 0) {
                 vbp = kzalloc(sizeof(*vbp), GFP_KERNEL);
                 if (!vbp) {
@@ -663,11 +670,11 @@ static long vpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                     return -EFAULT;
                 }
 
-                void *user_address = (void *)vbp->vb.virt_addr;
-                struct task_struct *my_struct = get_current();
-                struct mm_struct *mm = my_struct->mm;
-                unsigned long address = (unsigned long)user_address;
-                pgd_t *pgd = pgd_offset(mm, address);
+                user_address = (void *)vbp->vb.virt_addr;
+                my_struct = get_current();
+                mm = my_struct->mm;
+                address = (unsigned long)user_address;
+                pgd = pgd_offset(mm, address);
 
                 if (!pgd_none(*pgd) && !pgd_bad(*pgd)) {
                     p4d_t *p4d = p4d_offset(pgd, address);

@@ -72,7 +72,7 @@ else
 endif	#USE_RTL_SIM
 DEFINES += $(USER_DEFINES)
 DEFINES += -DUSE_FEEDING_METHOD_BUFFER
-CFLAGS  += -g -I. -Wno-implicit-function-declaration -Wno-format -Wl,--fatal-warning $(INCLUDES) $(DEFINES) $(PLATFORM_FLAGS)
+CFLAGS  += -g -I. -Wl,--fatal-warning $(INCLUDES) $(DEFINES) $(PLATFORM_FLAGS)
 ifeq ($(USE_RTL_SIM), yes)
 ifeq ($(IUS), 1)
 CFLAGS  += -fPIC # ncverilog is 64bit version

@@ -142,7 +142,7 @@ extern "C" {
     int vdi_clear_memory(unsigned long core_idx, PhysicalAddress addr, int len, int endian);
     int vdi_write_memory(unsigned long core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian);
     int vdi_read_memory(unsigned long core_idx, PhysicalAddress addr, unsigned char *data, int len, int endian);
-
+    int vdi_virt_to_phys(unsigned long core_idx, vpu_buffer_t *vb);
 
     int vdi_lock(unsigned long core_idx);
     void vdi_unlock(unsigned long core_idx);

@@ -27,7 +27,7 @@
 #include "product.h"
 #include "wave/wave5_regdefine.h"
 #include "wave/wave5.h"
-
+#include "misc/debug.h"
 
 
 #define W5_RET_DEC_DISPLAY_SIZE (W5_REG_BASE + 0x01D8)      // [FIX ME] delete ? or not?
