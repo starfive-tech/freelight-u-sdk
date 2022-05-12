@@ -559,7 +559,7 @@ BOOL GetJpgEncOpenParam(JpgEncOpenParam *pEncOP, EncConfigParam *pEncConfig)
     memset(&mjpgParam, 0x00, sizeof(EncMjpgParam));
 
     encCfg.prec = pEncConfig->extendedSequential;
-    sprintf(cfgPath, "%s/%s", pEncConfig->strCfgDir, pEncConfig->cfgFileName);
+    snprintf(cfgPath, sizeof(cfgPath), "%s/%s", pEncConfig->strCfgDir, pEncConfig->cfgFileName);
 
     if (parseJpgCfgFile(&encCfg, cfgPath) == 0) {
         return FALSE;
@@ -609,13 +609,13 @@ BOOL GetJpgEncOpenParam(JpgEncOpenParam *pEncOP, EncConfigParam *pEncConfig)
             mjpgParam.chromaQ12bit = (BOOL)encCfg.QMatPrec1;
             mjpgParam.extendedSequence = TRUE;
         }
-        sprintf(huffmanTablePath, "%s/%s", pEncConfig->strCfgDir, encCfg.HuffTabName);
+        snprintf(huffmanTablePath, sizeof(huffmanTablePath), "%s/%s", pEncConfig->strCfgDir, encCfg.HuffTabName);
         ret = jpgGetHuffTable(huffmanTablePath, &mjpgParam, pEncOP->jpg12bit);
         if (ret == 0) {
             return ret;
         }
 
-        sprintf(QMatTabPath, "%s/%s", pEncConfig->strCfgDir, encCfg.QMatTabName);
+        snprintf(QMatTabPath, sizeof(QMatTabPath), "%s/%s", pEncConfig->strCfgDir, encCfg.QMatTabName);
         if ((ret=jpgGetQMatrix(QMatTabPath, &mjpgParam)) == FALSE) {
             return ret;
         }

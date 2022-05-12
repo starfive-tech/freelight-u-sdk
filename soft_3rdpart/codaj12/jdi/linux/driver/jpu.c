@@ -116,10 +116,12 @@ static jpu_mm_t         s_jmem;
 static jpudrv_buffer_t  s_video_memory = {0};
 #endif /* JPU_SUPPORT_RESERVED_VIDEO_MEMORY */
 
-
+#ifndef JPU_SUPPORT_CLOCK_CONTROL
 static int jpu_hw_reset(void);
 static void jpu_clk_disable(void);
 static int jpu_clk_enable(void);
+#endif
+
 // end customer definition
 
 static jpudrv_buffer_t s_instance_pool = {0};
@@ -384,7 +386,12 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
         break;
      case JDI_IOCTL_GET_PHYSICAL_MEMORY:
         {
-            jpudrv_buffer_pool_t *jbp;
+            jpudrv_buffer_pool_t *jbp = NULL;
+            void *user_address = NULL;
+            struct task_struct *my_struct = NULL;
+            struct mm_struct *mm = NULL;
+            unsigned long address = 0;
+            pgd_t *pgd = NULL;
 
             DPRINTK("[JPUDRV][+]JDI_IOCTL_GET_PHYSICAL_MEMORY\n");
             if ((ret = down_interruptible(&s_jpu_sem)) == 0) {
@@ -402,11 +409,11 @@ static long jpu_ioctl(struct file *filp, u_int cmd, u_long arg)
                     return -EFAULT;
                 }
 
-                void *user_address = (void *)jbp->jb.virt_addr;
-                struct task_struct *my_struct = get_current();
-                struct mm_struct *mm = my_struct->mm;
-                unsigned long address = (unsigned long)user_address;
-                pgd_t *pgd = pgd_offset(mm, address);
+                user_address = (void *)jbp->jb.virt_addr;
+                my_struct = get_current();
+                mm = my_struct->mm;
+                address = (unsigned long)user_address;
+                pgd = pgd_offset(mm, address);
 
                 if (!pgd_none(*pgd) && !pgd_bad(*pgd)) {
                     p4d_t *p4d = p4d_offset(pgd, address);
@@ -1090,7 +1097,7 @@ MODULE_LICENSE("GPL");
 module_init(jpu_init);
 module_exit(jpu_exit);
 
-
+#ifndef JPU_SUPPORT_CLOCK_CONTROL
 static void _set_reset(volatile unsigned long p_assert_reg,volatile unsigned long p_status_reg,int ibit)
 {
     unsigned int read_value;
@@ -1212,6 +1219,4 @@ void jpu_clk_disable(void)
 {
 	_clk_control(0);
 }
-
-
-
+#endif

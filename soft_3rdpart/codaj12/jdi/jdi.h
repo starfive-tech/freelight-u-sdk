@@ -111,6 +111,7 @@ extern "C" {
 
     int jdi_write_memory(unsigned long addr, unsigned char *data, int len, int endian);
     int jdi_read_memory(unsigned long addr, unsigned char *data, int len, int endian);
+    int jdi_attach_dma_memory(jpu_buffer_t *vb);
 
     int jdi_lock();
     void jdi_unlock();
