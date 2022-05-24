@@ -20,7 +20,6 @@ CONFIG_SOC_STARFIVE_VIC7100=y
 CONFIG_SMP=y
 CONFIG_NR_CPUS=2
 CONFIG_HZ_100=y
-CONFIG_CMDLINE="earlyprintk console=tty1 console=ttyS0,115200 debug rootwait stmmaceth=chain_mode:1"
 CONFIG_CMDLINE_FORCE=y
 # CONFIG_SECCOMP is not set
 CONFIG_MODULES=y
