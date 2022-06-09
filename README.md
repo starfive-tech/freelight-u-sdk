@@ -134,44 +134,13 @@ When you see the `buildroot login:` message, then congratulations, the launch wa
 
 
 
-## Appendix I: How to Switch Display Framework Between DRM and Framebuffer
+## Appendix I: How to Switch Display device Between hdmi and mipi
 
-The default display framework is `DRM` now.  Use `make linux-menuconfig`  follow below could change between `DRM` and `Framebuffer` framework
+The default display device is `hdmi` now.  Use `make linux-menuconfig`  follow below could change between `hdmi` and `mipi` display device
 
-#### If switch to `Framebuffer` display framework with`hdmi` display device:
+#### If switch to `mipi` display device:
 
-> 1. Disable the DRM feature:
->    CONFIG_DRM_I2C_NXP_TDA998X
->    CONFIG_DRM_I2C_NXP_TDA9950
->    CONFIG_DRM_STARFIVE
->
-> 2. Enable the Framebuffer feature:
->    CONFIG_FB_STARFIVE
->    CONFIG_FB_STARFIVE_HDMI_TDA998X
->    CONFIG_FB_STARFIVE_VIDEO
->
-> Note: Recommend disable the below:
->    CONFIG_NVDLA
->    CONFIG_FRAMEBUFFER_CONSOLE
-
-#### If switch to `DRM` display framework with `hdmi` display device:
-
-> 1. Disable the below kernel config
->    CONFIG_FB_STARFIVE
->    CONFIG_FB_STARFIVE_HDMI_TDA998X
->    CONFIG_FB_STARFIVE_VIDEO
->    CONFIG_NVDLA
->
-> 2. Enable the below kernel config:
->    CONFIG_DRM_I2C_NXP_TDA998X
->    CONFIG_DRM_I2C_NXP_TDA9950
->    CONFIG_DRM_STARFIVE
->
-> Note: when use DRM to hdmi pipeline, please make sure CONFIG_DRM_STARFIVE_MIPI_DSI is disable, or will cause color abnormal.
-
-#### If switch to `DRM` display framework with`mipi dsi` display device:
-
-> Based on the above "DRM with hdmi display device" config, enable the below kernel config:
+> enable the below kernel config:
 > CONFIG_DRM_STARFIVE_MIPI_DSI
 
 
