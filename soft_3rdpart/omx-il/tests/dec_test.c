@@ -39,6 +39,8 @@ typedef struct DecodeTestContext
     char sOutputFilePath[64];
     char sInputFilePath[64];
     char sOutputFormat[64];
+    OMX_U32 ScaleWidth;
+    OMX_U32 ScaleHeight;
     OMX_BUFFERHEADERTYPE *pInputBufferArray[64];
     OMX_BUFFERHEADERTYPE *pOutputBufferArray[64];
     AVFormatContext *avContext;
@@ -95,7 +97,14 @@ static OMX_ERRORTYPE event_handler(
 
 static void help()
 {
-    printf("./omx_dec_test -i <input file> -o <output file> \r\n");
+    printf("video_dec_test - omx video hardware decode unit test case\r\n\r\n");
+    printf("Usage:\r\n\r\n");
+    printf("./video_dec_test -i <input file>      input file\r\n");
+    printf("                 -o <output file>     output file\r\n");
+    printf("                 -f <format>          i420/nv12/nv21\r\n");
+    printf("                 --scaleW=<width>     (optional) scale width down. ceil8(width/8) <= scaledW <= width\r\n");
+    printf("                 --scaleH=<heitht>    (optional) scale height down, ceil8(height/8) <= scaledH <= height\r\n\r\n");
+    printf("./video_dec_test --help: show this message\r\n");
 }
 
 static OMX_ERRORTYPE fill_output_buffer_done_handler(
@@ -177,6 +186,8 @@ static OMX_S32 FillInputBuffer(DecodeTestContext *decodeTestContext, OMX_BUFFERH
     }
     pInputBuffer->nFlags = 0x10;
     pInputBuffer->nFilledLen = avpacket.size;
+    if(!pInputBuffer->pBuffer || !avpacket.data)
+        return 0;
     memcpy(pInputBuffer->pBuffer, avpacket.data, avpacket.size);
     return avpacket.size;
 }
@@ -185,6 +196,7 @@ int main(int argc, char **argv)
 {
     printf("=============================\r\n");
     OMX_S32 error;
+    FILE *fb;
     decodeTestContext = malloc(sizeof(DecodeTestContext));
     memset(decodeTestContext, 0, sizeof(DecodeTestContext));
 
@@ -200,9 +212,12 @@ int main(int argc, char **argv)
         {"output", required_argument, NULL, 'o'},
         {"input", required_argument, NULL, 'i'},
         {"format", required_argument, NULL, 'f'},
+        {"scaleW", required_argument, NULL, 'w'},
+        {"scaleH", required_argument, NULL, 'h'},
+        {"help", no_argument, NULL, '0'},
         {NULL, no_argument, NULL, 0},
     };
-    char *shortOpt = "i:o:f:";
+    char *shortOpt = "i:o:f:w:h:";
     OMX_U32 c;
     OMX_S32 l;
 
@@ -236,7 +251,15 @@ int main(int argc, char **argv)
             printf("format: %s\r\n", optarg);
             memcpy(decodeTestContext->sOutputFormat, optarg, strlen(optarg));
             break;
+        case 'w':
+            printf("ScaleWidth: %s\r\n", optarg);
+            decodeTestContext->ScaleWidth = atoi(optarg);
+            break;
         case 'h':
+            printf("ScaleHeight: %s\r\n", optarg);
+            decodeTestContext->ScaleHeight = atoi(optarg);
+            break;
+        case '0':
         default:
             help();
             return -1;
@@ -327,8 +350,10 @@ int main(int argc, char **argv)
     OMX_INIT_STRUCTURE(pOutputPortDefinition);
     pOutputPortDefinition.nPortIndex = 1;
     OMX_GetParameter(decodeTestContext->hComponentDecoder, OMX_IndexParamPortDefinition, &pOutputPortDefinition);
-    pOutputPortDefinition.format.video.nFrameWidth = codecParameters->width;
-    pOutputPortDefinition.format.video.nFrameHeight = codecParameters->height;
+    pOutputPortDefinition.format.video.nFrameWidth
+                = decodeTestContext->ScaleWidth? decodeTestContext->ScaleWidth:codecParameters->width;
+    pOutputPortDefinition.format.video.nFrameHeight
+                = decodeTestContext->ScaleHeight? decodeTestContext->ScaleHeight:codecParameters->height;
     if (strstr(decodeTestContext->sOutputFormat, "nv12") != NULL)
     {
         pOutputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420SemiPlanar;
@@ -372,6 +397,8 @@ int main(int argc, char **argv)
         OMX_EmptyThisBuffer(hComponentDecoder, pBuffer);
     }
 
+    fb = fopen(decodeTestContext->sOutputFilePath, "wb+");
+
     OMX_SendCommand(hComponentDecoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
 
     /*wait until decode finished*/
@@ -395,10 +422,7 @@ int main(int argc, char **argv)
         case 1:
         {
             OMX_BUFFERHEADERTYPE *pBuffer = data.pBuffer;
-            OMX_STRING sFilePath = decodeTestContext->sOutputFilePath;
-            FILE *fb = fopen(sFilePath, "ab+");
             fwrite(pBuffer->pBuffer, 1, pBuffer->nFilledLen, fb);
-            fclose(fb);
             if ((pBuffer->nFlags) & (OMX_BUFFERFLAG_EOS == OMX_BUFFERFLAG_EOS))
             {
                 goto end;
@@ -418,6 +442,7 @@ int main(int argc, char **argv)
 
 end:
     /*free resource*/
+    fclose(fb);
     OMX_FreeHandle(hComponentDecoder);
     OMX_Deinit();
 }
