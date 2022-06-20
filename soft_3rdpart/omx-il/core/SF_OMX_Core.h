@@ -101,10 +101,6 @@ extern "C"
 #endif
 
 int GetNumberOfComponent();
-OMX_BUFFERHEADERTYPE *GetOMXBufferByAddr(SF_OMX_COMPONENT *pSfOMXComponent, OMX_U8 *pAddr);
-OMX_ERRORTYPE StoreOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
-OMX_ERRORTYPE ClearOMXBuffer(SF_OMX_COMPONENT *pSfOMXComponent, OMX_BUFFERHEADERTYPE *pBuffer);
-OMX_U32 GetOMXBufferCount(SF_OMX_COMPONENT *pSfOMXComponent);
 
 #ifdef __cplusplus
 }

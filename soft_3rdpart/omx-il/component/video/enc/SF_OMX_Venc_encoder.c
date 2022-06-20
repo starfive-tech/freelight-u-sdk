@@ -75,7 +75,7 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
     switch (event)
     {
     case COMPONENT_EVENT_ENC_EMPTY_BUFFER_DONE:
-        pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
+        pOMXBuffer = (OMX_BUFFERHEADERTYPE *)pPortContainerExternal->pAppPrivate;
         if (pOMXBuffer == NULL)
         {
             LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
@@ -84,12 +84,11 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         pSfOMXComponent->callbacks->EmptyBufferDone(pSfOMXComponent->pOMXComponent, pSfOMXComponent->pAppData, pOMXBuffer);
         LOG(SF_LOG_PERF, "OMX empty one buffer, address = %p, size = %d, nTimeStamp = %d, nFlags = %X\r\n",
         pOMXBuffer->pBuffer, pOMXBuffer->nFilledLen, pOMXBuffer->nTimeStamp, pOMXBuffer->nFlags);
-        ClearOMXBuffer(pSfOMXComponent, pOMXBuffer);
         break;
     case COMPONENT_EVENT_ENC_FILL_BUFFER_DONE:
     {
         struct timeval tv;
-        pOMXBuffer = GetOMXBufferByAddr(pSfOMXComponent, (OMX_U8 *)pPortContainerExternal->pBuffer);
+        pOMXBuffer = (OMX_BUFFERHEADERTYPE *)pPortContainerExternal->pAppPrivate;
         if (pOMXBuffer == NULL)
         {
             LOG(SF_LOG_WARN, "Could not find omx buffer by address\r\n");
@@ -129,7 +128,6 @@ static void OnEventArrived(Component com, unsigned long event, void *data, void 
         ComponentImpl *pRendererComponent = (ComponentImpl *)pSfVideoImplement->hSFComponentRender;
         LOG(SF_LOG_PERF, "output queue count=%d/%d\r\n", pSfVideoImplement->functions->Queue_Get_Cnt(pRendererComponent->sinkPort.inputQ),
                                                     pSfOMXComponent->portDefinition[1].nBufferCountActual);
-        ClearOMXBuffer(pSfOMXComponent, pOMXBuffer);
     }
     break;
     case COMPONENT_EVENT_ENC_REGISTER_FB:
@@ -178,6 +176,7 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
     pPortContainerExternal->nFilledLen = pBuffer->nFilledLen;
     pPortContainerExternal->nFlags = pBuffer->nFlags;
     pPortContainerExternal->nBufferIndex = (OMX_U32)pBuffer->pInputPortPrivate;
+    pPortContainerExternal->pAppPrivate = (void*)pBuffer;
     LOG(SF_LOG_INFO, "Index = %lu, Address = %p, Flag = %X\r\n",(OMX_U64)(pBuffer->pInputPortPrivate), pBuffer->pBuffer, pBuffer->nFlags);
     if (pSfVideoImplement->functions->Queue_Enqueue(pFeederComponent->srcPort.inputQ, (void *)pPortContainerExternal) != OMX_TRUE)
     {
@@ -189,9 +188,6 @@ static OMX_ERRORTYPE SF_OMX_EmptyThisBuffer(
                                                     pSfOMXComponent->portDefinition[0].nBufferCountActual);
     free(pPortContainerExternal);
     pFeederComponent->pause = OMX_FALSE;
-
-    ret = StoreOMXBuffer(pSfOMXComponent, pBuffer);
-    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
 
 EXIT:
     FunctionOut();
@@ -224,6 +220,7 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
     memset(pPortContainerExternal, 0, sizeof(PortContainerExternal));
     pPortContainerExternal->pBuffer = pBuffer->pBuffer;
     pPortContainerExternal->nFilledLen = pBuffer->nAllocLen;
+    pPortContainerExternal->pAppPrivate = (void*)pBuffer;
     if (pSfVideoImplement->functions->Queue_Enqueue(pRendererComponent->sinkPort.inputQ, (void *)pPortContainerExternal) == -1)
     {
         LOG(SF_LOG_ERR, "%p:%p FAIL\r\n", pRendererComponent->sinkPort.inputQ, pPortContainerExternal);
@@ -234,8 +231,7 @@ static OMX_ERRORTYPE SF_OMX_FillThisBuffer(
                                                         pSfOMXComponent->portDefinition[1].nBufferCountActual);
     free(pPortContainerExternal);
     pRendererComponent->pause = OMX_FALSE;
-    ret = StoreOMXBuffer(pSfOMXComponent, pBuffer);
-    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
+
 EXIT:
     FunctionOut();
 
@@ -1137,10 +1133,8 @@ static OMX_ERRORTYPE SF_OMX_FreeBuffer(
     OMX_IN OMX_BUFFERHEADERTYPE *pBufferHdr)
 {
     OMX_ERRORTYPE ret = OMX_ErrorNone;
-    OMX_COMPONENTTYPE *pOMXComponent = (OMX_COMPONENTTYPE *)hComponent;
-    SF_OMX_COMPONENT *pSfOMXComponent = pOMXComponent->pComponentPrivate;
     FunctionIn();
-    LOG(SF_LOG_PERF, "buffer count = %d\r\n", GetOMXBufferCount(pSfOMXComponent));
+
     free(pBufferHdr);
 
     FunctionOut();

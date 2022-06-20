@@ -155,6 +155,8 @@ typedef struct PortContainerExternal
                                      buffer */
     Uint32 nOffset;            /**< start offset of valid data in bytes from
                                      the start of the buffer */
+    void*  pAppPrivate;        /**< pointer to any data the application
+                                     wants to associate with this buffer */
     Uint32 nBufferIndex;
     Uint32 nTickCount;         /**< Optional entry that the component and
                                      application can update with a tick count
