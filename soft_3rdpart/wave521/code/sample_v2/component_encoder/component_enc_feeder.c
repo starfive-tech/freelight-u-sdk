@@ -185,8 +185,18 @@ BOOL AttachDMABuffer(ComponentImpl* com, void *pBuffer, Uint32 size)
 {
     YuvFeederContext*       ctx = (YuvFeederContext*)com->context;
     EncOpenParam            encOpenParam = ctx->encOpenParam;
+    Uint32                  fbWidth = 0;
 
     int i = 0;
+
+    fbWidth = VPU_ALIGN8(encOpenParam.picWidth);
+    if (fbWidth % 32 > 0)
+    {
+        ctx->MemoryOptimization = FALSE;
+        VLOG(INFO, "Can not attach dma buffer beacuse width not 32 align\r\n");
+        return TRUE;
+    }
+
     GetAllocInfo(com, size);
 
     for (i = 0;i < ENC_SRC_BUF_NUM; i ++){
